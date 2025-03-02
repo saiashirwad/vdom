@@ -105,77 +105,39 @@ function areNodesEqual(a: VNode, b: VNode): boolean {
   return true;
 }
 
-export function createElement(vnode: VNode): HTMLElement | Text | DocumentFragment {
-  if (vnode.type === 'fragment') {
-    const fragment = document.createDocumentFragment();
-    vnode.children.forEach(child => {
-      fragment.appendChild(
-        typeof child === 'string'
-          ? document.createTextNode(child)
-          : createElement(child)
-      );
-    });
-    return fragment;
+export function createElement(
+  type: string | Function,
+  props: Record<string, any>,
+  children: any[]
+): VNode {
+  // Ensure children is always an array, even if undefined
+  const childrenArray = children || [];
+
+  if (typeof type === 'function') {
+    return type({ ...props, children: childrenArray });
   }
 
-  if (typeof vnode === 'string' || vnode.type === 'TEXT') {
-    const content = typeof vnode === 'string' ? vnode : String(vnode.children[0]);
-    const textNode = document.createTextNode(content);
-    if (typeof vnode !== 'string') vnode.domRef = textNode;
-    return textNode;
-  }
+  return {
+    type,
+    props: props || {},
+    children: childrenArray.flat().map(child =>
+      typeof child === 'object' ? child : createTextNode(child)
+    )
+  };
+}
 
-  if (typeof vnode.type === 'string') {
-    const element = document.createElement(vnode.type);
-    vnode.domRef = element;
-    vnode.eventCache = {};
-
-    Object.entries(vnode.props).forEach(([key, value]) => {
-      if (key.startsWith('on')) return;
-
-      if (key === 'className') {
-        element.className = value;
-      } else if (key === 'style' && typeof value === 'string') {
-        element.setAttribute('style', value);
-      } else if (key !== 'key' && key !== 'componentKey') {
-        element.setAttribute(key, value);
-      }
-    });
-
-    Object.entries(vnode.props)
-      .filter(([key]) => key.startsWith('on') && typeof vnode.props[key] === 'function')
-      .forEach(([key, handler]) => {
-        const eventName = key.slice(2).toLowerCase();
-        element.addEventListener(eventName, handler as EventListener);
-        vnode.eventCache![eventName] = handler as EventListener;
-      });
-
-    vnode.children.forEach(child => {
-      element.appendChild(
-        typeof child === 'string'
-          ? document.createTextNode(child)
-          : createElement(child)
-      );
-    });
-
-    return element;
-  }
-
-  if (typeof vnode.type === 'function') {
-    const childVNode = vnode.type(vnode.props);
-    const element = createElement(childVNode);
-    // @ts-ignore
-    vnode.domRef = element;
-    return element;
-  }
-
-  throw new Error(`Unknown node type: ${vnode.type}`);
+export function createTextNode(text: any): VNode {
+  return {
+    type: 'TEXT_ELEMENT',
+    props: { nodeValue: String(text) },
+    children: []
+  };
 }
 
 export function applyDiff(parent: HTMLElement, operations: DiffOperation[]): void {
   operations.forEach(op => {
     if (op.action === 'CREATE') {
-      parent.appendChild(createElement(op.node));
+      parent.appendChild(createDOMElement(op.node));
     }
     else if (op.action === 'REMOVE') {
       if (op.node.domRef && op.node.domRef.parentNode === parent) {
@@ -186,7 +148,7 @@ export function applyDiff(parent: HTMLElement, operations: DiffOperation[]): voi
     else if (op.action === 'REPLACE') {
       if (op.old.domRef && op.old.domRef.parentNode === parent) {
         cleanupEventHandlers(op.old);
-        const newElement = createElement(op.new);
+        const newElement = createDOMElement(op.new);
         parent.replaceChild(newElement, op.old.domRef);
       }
     }
@@ -340,7 +302,7 @@ function updateChildrenEfficiently(
           updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
           handledDomIndices.add(oldIndex);
         } else {
-          const newElement = createElement(newChild);
+          const newElement = createDOMElement(newChild);
 
           if (i < domChildren.length) {
             parent.insertBefore(newElement, domChildren[i]);
@@ -349,7 +311,7 @@ function updateChildrenEfficiently(
           }
         }
       } else {
-        const newElement = createElement(newChild);
+        const newElement = createDOMElement(newChild);
 
         if (i < domChildren.length) {
           parent.insertBefore(newElement, domChildren[i]);
@@ -367,7 +329,7 @@ function updateChildrenEfficiently(
         if (handledDomIndices.has(i)) {
           const newNode = isStringNewChild
             ? document.createTextNode(newChild)
-            : createElement(newChild);
+            : createDOMElement(newChild);
 
           parent.insertBefore(newNode, domNode);
         } else if (isStringNewChild) {
@@ -382,13 +344,13 @@ function updateChildrenEfficiently(
         } else if (typeof newChild !== 'string' && typeof oldChild !== 'string') {
           updateElement(domNode as HTMLElement, oldChild as VNode, newChild as VNode);
         } else {
-          const elementNode = createElement(newChild as VNode);
+          const elementNode = createDOMElement(newChild as VNode);
           parent.replaceChild(elementNode, domNode);
         }
       } else {
         const newNode = isStringNewChild
           ? document.createTextNode(newChild)
-          : createElement(newChild as VNode);
+          : createDOMElement(newChild as VNode);
 
         parent.appendChild(newNode);
       }
@@ -415,7 +377,7 @@ export function createApp(rootElement: HTMLElement, view: () => VNode): void {
       const newVNode = view();
 
       if (!currentVNode) {
-        rootElement.appendChild(createElement(newVNode));
+        rootElement.appendChild(createDOMElement(newVNode));
       } else {
         const operations = diff(currentVNode, newVNode);
         applyDiff(rootElement, operations);
@@ -430,3 +392,69 @@ export function createApp(rootElement: HTMLElement, view: () => VNode): void {
 }
 
 export type Cmd<Msg> = ((dispatch: (msg: Msg) => void) => void) | null;
+
+export function createDOMElement(vnode: VNode): HTMLElement | Text | DocumentFragment {
+  if (vnode.type === 'fragment') {
+    const fragment = document.createDocumentFragment();
+    vnode.children.forEach(child => {
+      fragment.appendChild(
+        typeof child === 'string'
+          ? document.createTextNode(child)
+          : createDOMElement(child)
+      );
+    });
+    return fragment;
+  }
+
+  if (typeof vnode === 'string' || vnode.type === 'TEXT_ELEMENT') {
+    const content = typeof vnode === 'string' ? vnode : String(vnode.props.nodeValue);
+    const textNode = document.createTextNode(content);
+    if (typeof vnode !== 'string') vnode.domRef = textNode;
+    return textNode;
+  }
+
+  if (typeof vnode.type === 'string') {
+    const element = document.createElement(vnode.type);
+    vnode.domRef = element;
+    vnode.eventCache = {};
+
+    Object.entries(vnode.props).forEach(([key, value]) => {
+      if (key.startsWith('on')) return;
+
+      if (key === 'className') {
+        element.className = value;
+      } else if (key === 'style' && typeof value === 'string') {
+        element.setAttribute('style', value);
+      } else if (key !== 'key' && key !== 'componentKey') {
+        element.setAttribute(key, value);
+      }
+    });
+
+    Object.entries(vnode.props)
+      .filter(([key]) => key.startsWith('on') && typeof vnode.props[key] === 'function')
+      .forEach(([key, handler]) => {
+        const eventName = key.slice(2).toLowerCase();
+        element.addEventListener(eventName, handler as EventListener);
+        vnode.eventCache![eventName] = handler as EventListener;
+      });
+
+    vnode.children.forEach(child => {
+      element.appendChild(
+        typeof child === 'string'
+          ? document.createTextNode(child)
+          : createDOMElement(child)
+      );
+    });
+
+    return element;
+  }
+
+  if (typeof vnode.type === 'function') {
+    const childVNode = vnode.type(vnode.props);
+    const element = createDOMElement(childVNode);
+    vnode.domRef = element as HTMLElement | Text;
+    return element;
+  }
+
+  throw new Error(`Unknown node type: ${vnode.type}`);
+}

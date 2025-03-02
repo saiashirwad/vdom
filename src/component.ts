@@ -2,6 +2,8 @@ import { produce, type Draft } from 'immer';
 import { type PropertyDispatch } from './dispatch';
 import type { VNode } from './vdom';
 
+type FC<P> = (props: P) => VNode;
+
 export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
   [K in TMsg['type']]: (params: {
     msg: Extract<TMsg, { type: K }>,
@@ -33,7 +35,7 @@ export function component<TModel, TMsg extends { type: string }>(
   init: () => TModel,
   update: Pattern<TMsg, TModel, void | TModel | null>,
   view: (model: TModel, dispatch: PropertyDispatch<TMsg>) => VNode
-): Component<TModel, TMsg> {
+): Component<TModel, TMsg> & ((props: { model: TModel, dispatch: PropertyDispatch<TMsg> }) => VNode) {
   // The enhanced updateState function that handles both patterns
   const updateStateImpl = (msgOrParams: TMsg | { msg: { msg: TMsg }, state: any }, stateArg?: TModel): TModel | void => {
     // Check if we're being called with the nested update pattern
@@ -60,10 +62,24 @@ export function component<TModel, TMsg extends { type: string }>(
     }
   };
 
-  return {
-    init,
-    update,
-    view,
-    updateState: updateStateImpl as any,
+  // Create the function that will be both the component object and the JSX component
+  const componentFunc = function (props: { model: TModel, dispatch: PropertyDispatch<TMsg> }): VNode {
+    return view(props.model, props.dispatch);
   };
+
+  // Add properties to the function
+  componentFunc.init = init;
+  componentFunc.update = update;
+  componentFunc.updateState = updateStateImpl as any;
+  componentFunc.view = function (modelOrProps: TModel | { model: TModel, dispatch: PropertyDispatch<TMsg> },
+    dispatchArg?: PropertyDispatch<TMsg>): VNode {
+    // Check if called with JSX props pattern
+    if (modelOrProps && typeof modelOrProps === 'object' && 'model' in modelOrProps && 'dispatch' in modelOrProps) {
+      return view(modelOrProps.model, modelOrProps.dispatch);
+    }
+    // Called with traditional (model, dispatch) pattern
+    return view(modelOrProps as TModel, dispatchArg!);
+  };
+
+  return componentFunc as any;
 }

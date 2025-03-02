@@ -1,4 +1,5 @@
 import type { VNode } from './vdom';
+import { createElement } from './vdom';
 
 // Create a Fragment component
 export function Fragment(props: { children?: any }): VNode {
@@ -7,6 +8,15 @@ export function Fragment(props: { children?: any }): VNode {
     props: {},
     children: Array.isArray(props.children) ? props.children : [props.children].filter(Boolean)
   };
+}
+
+// This function will be used by TypeScript to compile JSX
+export function h(
+  tag: string | Function,
+  props: Record<string, any> | null,
+  ...children: any[]
+): VNode {
+  return createElement(tag, props || {}, children.flat());
 }
 
 // Declare JSX namespace for TypeScript

@@ -57,34 +57,36 @@ const Settings = component<SettingsModel, SettingsMsg>(
       state.fontSize = size;
     }
   },
-  (model, dispatch) => div({ className: 'settings' }, [
-    h3({}, 'Settings'),
-    div({ className: 'controls' }, [
-      label({}, [
-        input({
-          type: 'checkbox',
-          checked: model.darkMode,
-          onChange: () => dispatch.toggleDarkMode()
-        }),
-        ' Dark Mode'
-      ]),
-      div({}, [
-        span({}, 'Font Size: '),
-        select({
-          value: String(model.fontSize),
-          onChange: (e: Event) => {
-            const size = Number((e.target as HTMLSelectElement).value);
-            dispatch.setFontSize({ size });
-          }
-        }, [
-          option({ value: '12' }, '12px'),
-          option({ value: '14' }, '14px'),
-          option({ value: '16' }, '16px'),
-          option({ value: '18' }, '18px')
-        ])
-      ])
-    ])
-  ])
+  (model, dispatch) => (
+    <div className="settings">
+      <h3>Settings</h3>
+      <div className="controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={model.darkMode}
+            onChange={() => dispatch.toggleDarkMode()}
+          />
+          {' Dark Mode'}
+        </label>
+        <div>
+          <span>Font Size: </span>
+          <select
+            value={String(model.fontSize)}
+            onChange={(e: Event) => {
+              const size = Number((e.target as HTMLSelectElement).value);
+              dispatch.setFontSize({ size });
+            }}
+          >
+            <option value="12">12px</option>
+            <option value="14">14px</option>
+            <option value="16">16px</option>
+            <option value="18">18px</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  )
 );
 
 type AppModel = {
@@ -116,20 +118,22 @@ const App = component<AppModel, AppMsg>(
     const settingsDispatch = mapDispatch(dispatch.settings);
     const counterDispatch = mapDispatch(dispatch.counter);
 
-    return div([
-      div([
-        Settings.view(model.settings, settingsDispatch),
-        div({ className: 'themed-container' }, [
-          Counter.view(model.counter, counterDispatch),
-        ]),
-        div([
-          button({
-            onClick: () => dispatch.resetCounter()
-          }, 'Reset Counter'),
-          p(`Counter has been reset ${model.resetCount} times`)
-        ])
-      ])
-    ])
+    return (
+      <div>
+        <div>
+          <Settings model={model.settings} dispatch={settingsDispatch} />
+          <div className="themed-container">
+            <Counter model={model.counter} dispatch={counterDispatch} />
+          </div>
+          <div>
+            <button onClick={() => dispatch.resetCounter()}>
+              Reset Counter
+            </button>
+            <p>Counter has been reset {model.resetCount} times</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 );
 
@@ -144,6 +148,5 @@ const user = {
   address: {
     street: '123 Main St',
     city: 'Anytown',
-
   }
 }
