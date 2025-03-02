@@ -1,10 +1,10 @@
-import { h, createApp, type VNode, createElement, diff, applyDiff, match, type Pattern } from './vdom';
+import { h, createApp, type VNode, createElement, diff, applyDiff, match, type Pattern, produce, type Draft } from './vdom';
 
-// Component factory function with pattern matching support
+// Component factory function with pattern matching support and immer integration
 function createComponent<TModel, TMsg extends { type: string }>(
   name: string,
   init: () => TModel,
-  update: Pattern<TMsg, TModel, TModel>,
+  update: Pattern<TMsg, Draft<TModel>, void | null>,
   view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode
 ) {
   return {
@@ -12,6 +12,12 @@ function createComponent<TModel, TMsg extends { type: string }>(
     init,
     update,
     view,
+    // Helper function to update state using pattern matching and immer
+    updateState: (msg: TMsg, state: TModel): TModel => {
+      return produce(state, draft => {
+        return match(msg, update, draft);
+      });
+    },
     // Wrap the component for use in parent components
     render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
       return view(props.model ?? init(), props.dispatch ?? (() => { }));
@@ -33,9 +39,15 @@ const Counter = createComponent<CounterModel, CounterMsg>(
   'Counter',
   () => ({ count: 0 }),
   {
-    INCREMENT: (_, model) => ({ ...model, count: model.count + 1 }),
-    DECREMENT: (_, model) => ({ ...model, count: model.count - 1 }),
-    SET: (msg, model) => ({ ...model, count: msg.value })
+    INCREMENT: (_, draft) => {
+      draft.count += 1;
+    },
+    DECREMENT: (_, draft) => {
+      draft.count -= 1;
+    },
+    SET: (msg, draft) => {
+      draft.count = msg.value;
+    }
   },
   (model, dispatch) => h('div', { className: 'counter', key: 'counter-container' }, [
     h('h3', { key: 'counter-heading' }, 'Counter'),
@@ -67,8 +79,12 @@ const Settings = createComponent<SettingsModel, SettingsMsg>(
   'Settings',
   () => ({ darkMode: false, fontSize: 16 }),
   {
-    TOGGLE_DARK_MODE: (_, model) => ({ ...model, darkMode: !model.darkMode }),
-    SET_FONT_SIZE: (msg, model) => ({ ...model, fontSize: msg.size })
+    TOGGLE_DARK_MODE: (_, draft) => {
+      draft.darkMode = !draft.darkMode;
+    },
+    SET_FONT_SIZE: (msg, draft) => {
+      draft.fontSize = msg.size;
+    }
   },
   (model, dispatch) => h('div', { className: 'settings', key: 'settings-container' }, [
     h('h3', { key: 'settings-heading' }, 'Settings'),
@@ -122,19 +138,17 @@ const App = createComponent<AppModel, AppMsg>(
     resetCount: 0
   }),
   {
-    COUNTER: (msg, model) => ({
-      ...model,
-      counter: match(msg.msg, Counter.update, model.counter)
-    }),
-    SETTINGS: (msg, model) => ({
-      ...model,
-      settings: match(msg.msg, Settings.update, model.settings)
-    }),
-    RESET_COUNTER: (_, model) => ({
-      ...model,
-      counter: Counter.init(),
-      resetCount: model.resetCount + 1
-    })
+    COUNTER: (msg, draft) => {
+      // Use the match + produce pattern inside a draft
+      draft.counter = Counter.updateState(msg.msg, draft.counter);
+    },
+    SETTINGS: (msg, draft) => {
+      draft.settings = Settings.updateState(msg.msg, draft.settings);
+    },
+    RESET_COUNTER: (_, draft) => {
+      draft.counter = Counter.init();
+      draft.resetCount += 1;
+    }
   },
   (model, dispatch) => {
     // Create wrapped dispatchers for child components
@@ -182,9 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let appState = App.init();
 
-  // Create a dispatch function that causes re-renders
+  // Create a dispatch function that uses Immer for updates
   const dispatch = (msg: AppMsg) => {
-    appState = match(msg, App.update, appState);
+    appState = App.updateState(msg, appState);
     render(); // Call render after state update
   };
 
