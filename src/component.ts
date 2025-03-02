@@ -1,5 +1,5 @@
 import { produce, type Draft } from 'immer';
-import { createDispatch, type PropertyDispatch } from './dispatch';
+import { type PropertyDispatch } from './dispatch';
 import type { VNode } from './vdom';
 
 export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
