@@ -1,4 +1,5 @@
 import { produce, type Draft } from 'immer';
+import type { VNode } from './vdom';
 
 export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
   [K in TMsg['type']]: (params: {
@@ -46,6 +47,3 @@ export function createComponent<TModel, TMsg extends { type: string }>(
     }
   };
 }
-
-// Need to import the VNode type for the Component interface
-import { type VNode } from './vdom'; 
