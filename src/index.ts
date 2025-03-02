@@ -8,20 +8,20 @@ type CounterModel = {
 };
 
 type CounterMsg =
-  | { type: 'INCREMENT' }
-  | { type: 'DECREMENT' }
-  | { type: 'SET'; value: number };
+  | { type: 'increment' }
+  | { type: 'decrement' }
+  | { type: 'set'; value: number };
 
 const Counter = component<CounterModel, CounterMsg>(
   () => ({ count: 0 }),
   {
-    INCREMENT: ({ state }) => {
+    increment: ({ state }) => {
       state.count += 1;
     },
-    DECREMENT: ({ state }) => {
+    decrement: ({ state }) => {
       state.count -= 1;
     },
-    SET: ({ msg: { value }, state }) => {
+    set: ({ msg: { value }, state }) => {
       state.count = value;
     }
   },
@@ -29,11 +29,11 @@ const Counter = component<CounterModel, CounterMsg>(
     h3({}, 'Counter'),
     div({ className: 'controls' }, [
       button({
-        onClick: () => dispatch.DECREMENT()
+        onClick: () => dispatch.decrement()
       }, '-'),
       span({ className: 'value' }, String(model.count)),
       button({
-        onClick: () => dispatch.INCREMENT()
+        onClick: () => dispatch.increment()
       }, '+')
     ])
   ])
@@ -46,16 +46,16 @@ type SettingsModel = {
 };
 
 type SettingsMsg =
-  | { type: 'TOGGLE_DARK_MODE' }
-  | { type: 'SET_FONT_SIZE'; size: number };
+  | { type: 'toggleDarkMode' }
+  | { type: 'setFontSize'; size: number };
 
 const Settings = component<SettingsModel, SettingsMsg>(
   () => ({ darkMode: false, fontSize: 16 }),
   {
-    TOGGLE_DARK_MODE: ({ state }) => {
+    toggleDarkMode: ({ state }) => {
       state.darkMode = !state.darkMode;
     },
-    SET_FONT_SIZE: ({ msg: { size }, state }) => {
+    setFontSize: ({ msg: { size }, state }) => {
       state.fontSize = size;
     }
   },
@@ -66,7 +66,7 @@ const Settings = component<SettingsModel, SettingsMsg>(
         input({
           type: 'checkbox',
           checked: model.darkMode,
-          onChange: () => dispatch.TOGGLE_DARK_MODE()
+          onChange: () => dispatch.toggleDarkMode()
         }),
         ' Dark Mode'
       ]),
@@ -76,7 +76,7 @@ const Settings = component<SettingsModel, SettingsMsg>(
           value: String(model.fontSize),
           onChange: (e: Event) => {
             const size = Number((e.target as HTMLSelectElement).value);
-            dispatch.SET_FONT_SIZE({ size });
+            dispatch.setFontSize({ size });
           }
         }, [
           option({ value: '12' }, '12px'),
