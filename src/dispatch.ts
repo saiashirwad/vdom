@@ -1,4 +1,3 @@
-import type { Pattern } from './component';
 
 /**
  * Enhanced dispatch type that allows both function calls and property access
@@ -31,7 +30,20 @@ export function createEnhancedDispatch<TMsg extends { type: string }>(
       return target[prop];
     },
     apply(target, _, args) {
-      return dispatch(...args);
+      return dispatch(args[0]);
     }
   }) as EnhancedDispatch<TMsg>;
-} 
+}
+
+/**
+ * Creates a dispatch function for a nested component that maps component-specific
+ * messages to parent component messages
+ */
+export function createNestedDispatch<TMsg extends { type: string }>(
+  mapper: (msg: TMsg) => void
+): EnhancedDispatch<TMsg> {
+  return createEnhancedDispatch(mapper);
+}
+
+// Alternative name if you prefer:
+export const mapDispatch = createNestedDispatch; 

@@ -1,7 +1,7 @@
 import { component } from './component';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
-import { createEnhancedDispatch } from './dispatch';
+import { createEnhancedDispatch, createNestedDispatch } from './dispatch';
 
 type CounterModel = {
   count: number;
@@ -123,11 +123,8 @@ const App = component<AppModel, AppMsg>(
     }
   },
   (model, dispatch) => {
-    const counterDispatch = (msg: CounterMsg) => dispatch.counter({ msg });
-    const settingsDispatch = (msg: SettingsMsg) => dispatch.settings({ msg });
-
-    const enhancedCounterDispatch = createEnhancedDispatch<CounterMsg>(counterDispatch);
-    const enhancedSettingsDispatch = createEnhancedDispatch<SettingsMsg>(settingsDispatch);
+    const counterDispatch = createNestedDispatch<CounterMsg>(msg => dispatch.counter({ msg }));
+    const settingsDispatch = createNestedDispatch<SettingsMsg>(msg => dispatch.settings({ msg }));
 
     const containerStyle = {
       backgroundColor: model.settings.darkMode ? '#333' : '#fff',
@@ -138,7 +135,7 @@ const App = component<AppModel, AppMsg>(
 
     return div({ className: 'app' }, [
       div({ style: containerStyle }, [
-        Settings.view(model.settings, enhancedSettingsDispatch),
+        Settings.view(model.settings, settingsDispatch),
         div({ className: 'themed-container' }, [
           Counter.render({
             key: 'counter',
