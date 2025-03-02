@@ -111,12 +111,8 @@ const App = component<AppModel, AppMsg>(
     resetCount: 0
   }),
   {
-    counter: ({ msg: { msg }, state }) => {
-      state.counter = Counter.updateState(msg, state.counter);
-    },
-    settings: ({ msg: { msg }, state }) => {
-      state.settings = Settings.updateState(msg, state.settings);
-    },
+    counter: Counter.updateState,
+    settings: Settings.updateState,
     resetCounter: ({ state }) => {
       state.counter = Counter.init();
       state.resetCount += 1;

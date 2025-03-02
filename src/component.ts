@@ -25,7 +25,8 @@ export type Component<TModel, TMsg extends { type: string }> = {
   init: () => TModel;
   update: Pattern<TMsg, TModel, void | TModel | null>;
   view: (model: TModel, dispatch: EnhancedDispatch<TMsg>) => VNode;
-  updateState: (msg: TMsg, state: TModel) => TModel;
+  updateState: ((msg: TMsg, state: TModel) => TModel) &
+  ((params: { msg: { msg: TMsg }, state: any }) => void);
   render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => VNode;
 };
 
@@ -34,15 +35,37 @@ export function component<TModel, TMsg extends { type: string }>(
   update: Pattern<TMsg, TModel, void | TModel | null>,
   view: (model: TModel, dispatch: EnhancedDispatch<TMsg>) => VNode
 ): Component<TModel, TMsg> {
+  // The enhanced updateState function that handles both patterns
+  const updateStateImpl = (msgOrParams: TMsg | { msg: { msg: TMsg }, state: any }, stateArg?: TModel): TModel | void => {
+    // Check if we're being called with the nested update pattern
+    if (msgOrParams && typeof msgOrParams === 'object' && 'msg' in msgOrParams && 'state' in msgOrParams) {
+      const { msg: { msg }, state } = msgOrParams as { msg: { msg: TMsg }, state: any };
+      // Check if we can identify the child state property
+      for (const key in state) {
+        if (typeof state[key] === 'object') {
+          // Try updating this property
+          const newChildState = produce(state[key], (draft: Draft<TModel>) => {
+            match(msg, update, draft);
+          });
+          state[key] = newChildState;
+          return;
+        }
+      }
+    } else {
+      // Traditional usage: (msg, state) => newState
+      const msg = msgOrParams as TMsg;
+      const state = stateArg as TModel;
+      return produce(state, (draft: Draft<TModel>) => {
+        match(msg, update, draft);
+      });
+    }
+  };
+
   return {
     init,
     update,
     view,
-    updateState: (msg: TMsg, state: TModel): TModel => {
-      return produce(state, (draft: Draft<TModel>) => {
-        match(msg, update, draft);
-      });
-    },
+    updateState: updateStateImpl as any,
     render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
       const baseDispatch = props.dispatch ?? (() => { });
       const enhancedDispatch = createEnhancedDispatch<TMsg>(baseDispatch);
