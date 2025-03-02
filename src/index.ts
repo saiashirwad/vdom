@@ -35,7 +35,10 @@ const Counter = component<CounterModel, CounterMsg>(
         span({ className: "value" }, String(model.count)),
         button({
           onClick: () => dispatch.increment(),
-        }, "+")
+        }, "+"),
+        button({
+          onClick: () => dispatch.set({ value: 0 }),
+        }, "Reset")
       ])
     ])
 );
