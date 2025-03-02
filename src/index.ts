@@ -38,6 +38,7 @@ const Counter = component<CounterModel, CounterMsg>(
   ])
 );
 
+
 type SettingsModel = {
   darkMode: boolean;
   fontSize: number;
