@@ -1,5 +1,6 @@
 import { applyDiff, createElement, diff, type VNode } from './vdom';
 import type { Component } from './component';
+import { createEnhancedDispatch } from './dispatch';
 
 export interface MountOptions {
   rootId?: string;
@@ -23,10 +24,12 @@ export function mount<Model, Msg extends { type: string }>(
   let currentVNode: VNode | null = null;
   let state = component.init();
 
-  const dispatch = (msg: Msg) => {
+  const baseDispatch = (msg: Msg) => {
     state = component.updateState(msg, state);
     render();
   };
+
+  const dispatch = createEnhancedDispatch<Msg>(baseDispatch);
 
   const render = () => {
     const newVNode = component.view(state, dispatch);

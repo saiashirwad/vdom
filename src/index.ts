@@ -1,6 +1,7 @@
 import { component } from './component';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
+import { createEnhancedDispatch } from './dispatch';
 
 type CounterModel = {
   count: number;
@@ -28,11 +29,11 @@ const Counter = component<CounterModel, CounterMsg>(
     h3({}, 'Counter'),
     div({ className: 'controls' }, [
       button({
-        onClick: () => dispatch({ type: 'DECREMENT' })
+        onClick: () => dispatch.DECREMENT()
       }, '-'),
       span({ className: 'value' }, String(model.count)),
       button({
-        onClick: () => dispatch({ type: 'INCREMENT' })
+        onClick: () => dispatch.INCREMENT()
       }, '+')
     ])
   ])
@@ -65,7 +66,7 @@ const Settings = component<SettingsModel, SettingsMsg>(
         input({
           type: 'checkbox',
           checked: model.darkMode,
-          onChange: () => dispatch({ type: 'TOGGLE_DARK_MODE' })
+          onChange: () => dispatch.TOGGLE_DARK_MODE()
         }),
         ' Dark Mode'
       ]),
@@ -75,7 +76,7 @@ const Settings = component<SettingsModel, SettingsMsg>(
           value: String(model.fontSize),
           onChange: (e: Event) => {
             const size = Number((e.target as HTMLSelectElement).value);
-            dispatch({ type: 'SET_FONT_SIZE', size });
+            dispatch.SET_FONT_SIZE({ size });
           }
         }, [
           option({ value: '12' }, '12px'),
@@ -121,6 +122,9 @@ const App = component<AppModel, AppMsg>(
     const counterDispatch = (msg: CounterMsg) => dispatch({ type: 'COUNTER', msg });
     const settingsDispatch = (msg: SettingsMsg) => dispatch({ type: 'SETTINGS', msg });
 
+    const enhancedCounterDispatch = createEnhancedDispatch<CounterMsg>(counterDispatch);
+    const enhancedSettingsDispatch = createEnhancedDispatch<SettingsMsg>(settingsDispatch);
+
     const containerStyle = {
       backgroundColor: model.settings.darkMode ? '#333' : '#fff',
       color: model.settings.darkMode ? '#fff' : '#333',
@@ -130,7 +134,7 @@ const App = component<AppModel, AppMsg>(
 
     return div({ className: 'app' }, [
       div({ style: containerStyle }, [
-        Settings.view(model.settings, settingsDispatch),
+        Settings.view(model.settings, enhancedSettingsDispatch),
         div({ className: 'themed-container' }, [
           Counter.render({
             key: 'counter',
@@ -139,7 +143,7 @@ const App = component<AppModel, AppMsg>(
           }),
           div({ className: 'reset-section' }, [
             button({
-              onClick: () => dispatch({ type: 'RESET_COUNTER' })
+              onClick: () => dispatch.RESET_COUNTER()
             }, 'Reset Counter'),
             p({}, `Counter has been reset ${model.resetCount} times`)
           ])

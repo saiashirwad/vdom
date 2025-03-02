@@ -1,5 +1,6 @@
 import { produce, type Draft } from 'immer';
 import type { VNode } from './vdom';
+import { createEnhancedDispatch, type EnhancedDispatch } from './dispatch';
 
 export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
   [K in TMsg['type']]: (params: {
@@ -23,7 +24,7 @@ export function match<TMsg extends { type: string }, TModel, TResult>(
 export type Component<TModel, TMsg extends { type: string }> = {
   init: () => TModel;
   update: Pattern<TMsg, TModel, void | TModel | null>;
-  view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode;
+  view: (model: TModel, dispatch: EnhancedDispatch<TMsg>) => VNode;
   updateState: (msg: TMsg, state: TModel) => TModel;
   render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => VNode;
 };
@@ -31,7 +32,7 @@ export type Component<TModel, TMsg extends { type: string }> = {
 export function component<TModel, TMsg extends { type: string }>(
   init: () => TModel,
   update: Pattern<TMsg, TModel, void | TModel | null>,
-  view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode
+  view: (model: TModel, dispatch: EnhancedDispatch<TMsg>) => VNode
 ): Component<TModel, TMsg> {
   return {
     init,
@@ -43,7 +44,9 @@ export function component<TModel, TMsg extends { type: string }>(
       });
     },
     render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
-      return view(props.model ?? init(), props.dispatch ?? (() => { }));
+      const baseDispatch = props.dispatch ?? (() => { });
+      const enhancedDispatch = createEnhancedDispatch<TMsg>(baseDispatch);
+      return view(props.model ?? init(), enhancedDispatch);
     }
   };
 }
