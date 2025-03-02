@@ -1,7 +1,7 @@
 import { component } from './component';
+import { mapDispatch } from './dispatch';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
-import { createEnhancedDispatch, createNestedDispatch } from './dispatch';
 
 type CounterModel = {
   count: number;
@@ -123,8 +123,8 @@ const App = component<AppModel, AppMsg>(
     }
   },
   (model, dispatch) => {
-    const counterDispatch = createNestedDispatch<CounterMsg>(msg => dispatch.counter({ msg }));
-    const settingsDispatch = createNestedDispatch<SettingsMsg>(msg => dispatch.settings({ msg }));
+    const counterDispatch = mapDispatch(dispatch.counter);
+    const settingsDispatch = mapDispatch(dispatch.settings);
 
     const containerStyle = {
       backgroundColor: model.settings.darkMode ? '#333' : '#fff',

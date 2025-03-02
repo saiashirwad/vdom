@@ -1,4 +1,3 @@
-
 /**
  * Enhanced dispatch type that allows both function calls and property access
  * for message dispatching
@@ -36,14 +35,15 @@ export function createEnhancedDispatch<TMsg extends { type: string }>(
 }
 
 /**
- * Creates a dispatch function for a nested component that maps component-specific
- * messages to parent component messages
+ * Maps dispatches from child components to parent components
  */
-export function createNestedDispatch<TMsg extends { type: string }>(
-  mapper: (msg: TMsg) => void
-): EnhancedDispatch<TMsg> {
-  return createEnhancedDispatch(mapper);
+export function mapDispatch(
+  parentDispatcher: any
+): any {
+  return createEnhancedDispatch((childMsg: any) => {
+    parentDispatcher({ msg: childMsg });
+  });
 }
 
-// Alternative name if you prefer:
-export const mapDispatch = createNestedDispatch; 
+// Export the old name for backward compatibility
+export const createNestedDispatch = mapDispatch; 
