@@ -1,43 +1,6 @@
 import { component, h, createApp, type VNode } from './vdom';
 
-type ButtonModel = { clicks: number };
-type ButtonMsg = { type: 'CLICK' };
 
-const Button = component<ButtonModel, ButtonMsg>(
-  'BUTTON',
-  () => ({ clicks: 0 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'CLICK': return { ...model, clicks: model.clicks + 1 };
-      default: return model;
-    }
-  },
-  (model, dispatch) => h('button', {
-    onClick: () => dispatch({ type: 'CLICK' })
-  }, `Clicked ${model.clicks} times`)
-);
-
-type CounterModel = { count: number };
-type CounterMsg = { type: 'INCREMENT' } | { type: 'DECREMENT' };
-
-const Counter = component<CounterModel, CounterMsg>(
-  'COUNTER',
-  () => ({ count: 0 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'INCREMENT': return { ...model, count: model.count + 1 };
-      case 'DECREMENT': return { ...model, count: model.count - 1 };
-      default: return model;
-    }
-  },
-  (model, dispatch) => h('div', {}, [
-    h('button', { onClick: () => dispatch({ type: 'DECREMENT' }) }, '-'),
-    h('span', {}, ` ${model.count} `),
-    h('button', { onClick: () => dispatch({ type: 'INCREMENT' }) }, '+')
-  ])
-);
-
-// TodoList Component
 type Todo = {
   id: number;
   text: string;
@@ -58,49 +21,44 @@ type TodoListMsg =
 
 const TodoList = component<TodoListModel, TodoListMsg>(
   'TODO_LIST',
-  () => ({ todos: [], newTodoText: '', nextId: 1 }),
-  (msg, model) => {
+  () => [{ todos: [], newTodoText: '', nextId: 1 }, null],
+  (msg, state) => {
     switch (msg.type) {
       case 'UPDATE_NEW_TODO': {
-        // Create a brand new model to ensure updates
-        return { ...model, newTodoText: msg.text };
+        state.newTodoText = msg.text;
+        return;
       }
       case 'ADD_TODO': {
-        if (!model.newTodoText.trim()) return model;
-        const newTodo = {
-          id: model.nextId,
-          text: model.newTodoText,
+        if (!state.newTodoText.trim()) return null;
+        state.todos.push({
+          id: state.nextId,
+          text: state.newTodoText,
           completed: false
-        };
-        return {
-          todos: [...model.todos, newTodo],
-          newTodoText: '',
-          nextId: model.nextId + 1
-        };
+        });
+        state.newTodoText = '';
+        state.nextId++;
+        return;
       }
       case 'TOGGLE_TODO': {
-        const updatedTodos = model.todos.map(todo =>
-          todo.id === msg.id
-            ? { ...todo, completed: !todo.completed }
-            : todo
-        );
-        return { ...model, todos: updatedTodos };
+        const todo = state.todos.find(t => t.id === msg.id);
+        if (todo) {
+          todo.completed = !todo.completed;
+        }
+        return;
       }
       case 'DELETE_TODO': {
-        // Make sure we're creating a fresh array without the deleted todo
-        const filteredTodos = model.todos.filter(todo => todo.id !== msg.id);
+        const index = state.todos.findIndex(t => t.id === msg.id);
+        if (index !== -1) {
+          state.todos.splice(index, 1);
 
-        // Log for debugging
-        console.log(`Deleting todo ${msg.id}. Old count: ${model.todos.length}, New count: ${filteredTodos.length}`);
-
-        // Return a completely new model to ensure the change is detected
-        return {
-          ...model,
-          todos: filteredTodos
-        };
+          // Example of returning a command with the modified draft
+          const logCmd = (dispatch: (msg: TodoListMsg) => void) => {
+            console.log(`Deleted todo ${msg.id}`);
+          };
+          return [state, logCmd];
+        }
+        return null;
       }
-      default:
-        return model;
     }
   },
   (model, dispatch) => h('div', { className: 'todo-list', key: 'todo-list-container' }, [
@@ -161,10 +119,6 @@ const TodoList = component<TodoListModel, TodoListMsg>(
 
 function appView(): VNode {
   return h('div', {}, [
-    h('h1', {}, 'Component Examples'),
-    Button({ key: 'button1' }),
-    Button({ key: 'button2' }),
-    Counter({ key: 'counter1' }),
     TodoList({ key: 'todoList' })
   ]);
 }

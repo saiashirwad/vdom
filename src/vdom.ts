@@ -403,49 +403,124 @@ export function createApp(rootElement: HTMLElement, view: () => VNode): void {
   render();
 }
 
+export type Cmd<Msg> = ((dispatch: (msg: Msg) => void) => void) | null;
+
+function createDispatcher<Model, Msg>(
+  componentType: string,
+  componentKey: string
+) {
+  return function dispatch(msg: Msg) {
+    const updateFn = componentUpdates.get(componentType)!;
+    const oldModel = componentStates.get(componentKey)!;
+
+    let newModel: Model;
+    let cmd: Cmd<Msg> | null = null;
+
+    const result = produce(oldModel, (draft) => {
+      return updateFn(msg, draft);
+    });
+
+    if (Array.isArray(result) && result.length === 2) {
+      [newModel, cmd] = result as [Model, Cmd<Msg>];
+    } else {
+      newModel = result as Model;
+    }
+
+    if (JSON.stringify(oldModel) !== JSON.stringify(newModel)) {
+      componentStates.set(componentKey, newModel);
+
+      if (cmd) {
+        cmd(dispatch);
+      }
+
+      if (globalRender) globalRender();
+    } else if (cmd) {
+      cmd(dispatch);
+    }
+  };
+}
+
 export function component<Model, Msg>(
   componentType: string,
-  init: () => Model,
-  update: (msg: Msg, model: Model) => Model,
+  init: () => [Model, Cmd<Msg>],
+  update: (msg: Msg, draft: Draft<Model>) => void | Model | [Model, Cmd<Msg>] | null,
   view: (model: Model, dispatch: (msg: Msg) => void) => VNode
 ): (props: { key: string }) => VNode {
-  componentUpdates.set(componentType, update as (msg: any, model: any) => any);
+  componentUpdates.set(componentType, update as any);
 
   return function Component(props: { key: string }): VNode {
     const componentKey = props.key;
 
     if (!componentStates.has(componentKey)) {
-      componentStates.set(componentKey, init());
+      const [initialModel, initialCmd] = init();
+      componentStates.set(componentKey, initialModel);
+
+      if (initialCmd) {
+        const dispatch = createDispatcher(componentType, componentKey);
+        initialCmd(dispatch);
+      }
     }
 
     const model = componentStates.get(componentKey)!;
+    const dispatch = createDispatcher(componentType, componentKey);
 
-    const dispatch = (msg: Msg) => {
-      const updateFn = componentUpdates.get(componentType)!;
-      const oldModel = model;
-      const newModel = updateFn(msg, oldModel);
-
-      if (JSON.stringify(oldModel) !== JSON.stringify(newModel)) {
-        componentStates.set(componentKey, { ...newModel });
-
-        const activeElement = document.activeElement;
-
-        if (globalRender) globalRender();
-
-        if (activeElement && document.contains(activeElement)) {
-          (activeElement as HTMLElement).focus();
-        }
-      }
-    };
-
-    const rendered = view(model, dispatch);
-
-    rendered.props = {
-      ...rendered.props,
-      componentKey,
-      key: rendered.props.key || componentKey
-    };
-
-    return rendered;
+    return view(model, dispatch);
   };
+}
+
+export function program<Model, Msg>(config: {
+  init: () => [Model, Cmd<Msg>],
+  update: (msg: Msg, model: Model) => [Model, Cmd<Msg>],
+  view: (model: Model, dispatch: (msg: Msg) => void) => VNode,
+  node: HTMLElement
+}) {
+  let currentModel = config.init()[0];
+  let currentVNode: VNode | null = null;
+
+  function dispatch(msg: Msg) {
+    const [newModel, cmd] = config.update(msg, currentModel);
+    currentModel = newModel;
+
+    if (cmd) {
+      cmd(dispatch);
+    }
+
+    render();
+  }
+
+  function render() {
+    if (renderPending) return;
+    renderPending = true;
+
+    requestAnimationFrame(() => {
+      const newVNode = config.view(currentModel, dispatch);
+
+      if (!currentVNode) {
+        config.node.appendChild(createElement(newVNode));
+      } else {
+        const operations = diff(currentVNode, newVNode);
+        applyDiff(config.node, operations);
+      }
+
+      currentVNode = newVNode;
+      renderPending = false;
+    });
+  }
+
+  render();
+}
+
+export type Draft<T> = T;
+
+export function produce<S, R>(baseState: S, recipe: (draft: Draft<S>) => R): S {
+  const draft = JSON.parse(JSON.stringify(baseState)) as S;
+  const result = recipe(draft as Draft<S>);
+
+  if (result === undefined) {
+    return draft;
+  } else if (result === null) {
+    return baseState;
+  } else {
+    return result as unknown as S;
+  }
 }
