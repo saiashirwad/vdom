@@ -20,11 +20,21 @@ function match<TMsg extends { type: string }, TModel, TResult>(
   });
 }
 
+// Define a clear Component type for better type inference
+type Component<TModel, TMsg extends { type: string }> = {
+  init: () => TModel;
+  update: Pattern<TMsg, TModel, void | TModel | null>;
+  view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode;
+  updateState: (msg: TMsg, state: TModel) => TModel;
+  render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => VNode;
+};
+
+// Updated component factory that returns the clean type
 function createComponent<TModel, TMsg extends { type: string }>(
   init: () => TModel,
   update: Pattern<TMsg, TModel, void | TModel | null>,
   view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode
-) {
+): Component<TModel, TMsg> {
   return {
     init,
     update,
@@ -78,11 +88,11 @@ const Counter = createComponent<CounterModel, CounterMsg>(
   ])
 );
 
-// Settings Component
 type SettingsModel = {
   darkMode: boolean;
   fontSize: number;
 };
+
 
 type SettingsMsg =
   | { type: 'TOGGLE_DARK_MODE' }
