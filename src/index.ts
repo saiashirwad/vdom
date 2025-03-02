@@ -72,16 +72,14 @@ const Counter = createComponent<CounterModel, CounterMsg>(
       state.count = value;
     }
   },
-  (model, dispatch) => h('div', { className: 'counter', key: 'counter-container' }, [
-    h('h3', { key: 'counter-heading' }, 'Counter'),
-    h('div', { key: 'counter-controls', className: 'controls' }, [
+  (model, dispatch) => h('div', { className: 'counter' }, [
+    h('h3', {}, 'Counter'),
+    h('div', { className: 'controls' }, [
       h('button', {
-        key: 'decrement-btn',
         onClick: () => dispatch({ type: 'DECREMENT' })
       }, '-'),
-      h('span', { key: 'counter-value', className: 'value' }, String(model.count)),
+      h('span', { className: 'value' }, String(model.count)),
       h('button', {
-        key: 'increment-btn',
         onClick: () => dispatch({ type: 'INCREMENT' })
       }, '+')
     ])
@@ -92,7 +90,6 @@ type SettingsModel = {
   darkMode: boolean;
   fontSize: number;
 };
-
 
 type SettingsMsg =
   | { type: 'TOGGLE_DARK_MODE' }
@@ -110,32 +107,30 @@ const Settings = createComponent<SettingsModel, SettingsMsg>(
       state.fontSize = size;
     }
   },
-  (model, dispatch) => h('div', { className: 'settings', key: 'settings-container' }, [
-    h('h3', { key: 'settings-heading' }, 'Settings'),
-    h('div', { key: 'settings-controls', className: 'controls' }, [
-      h('label', { key: 'dark-mode-label' }, [
+  (model, dispatch) => h('div', { className: 'settings' }, [
+    h('h3', {}, 'Settings'),
+    h('div', { className: 'controls' }, [
+      h('label', {}, [
         h('input', {
-          key: 'dark-mode-checkbox',
           type: 'checkbox',
           checked: model.darkMode,
           onChange: () => dispatch({ type: 'TOGGLE_DARK_MODE' })
         }),
         ' Dark Mode'
       ]),
-      h('div', { key: 'font-size-control' }, [
-        h('span', { key: 'font-size-label' }, 'Font Size: '),
+      h('div', {}, [
+        h('span', {}, 'Font Size: '),
         h('select', {
-          key: 'font-size-select',
           value: String(model.fontSize),
           onChange: (e: Event) => {
             const size = Number((e.target as HTMLSelectElement).value);
             dispatch({ type: 'SET_FONT_SIZE', size });
           }
         }, [
-          h('option', { key: 'size-12', value: '12' }, '12px'),
-          h('option', { key: 'size-14', value: '14' }, '14px'),
-          h('option', { key: 'size-16', value: '16' }, '16px'),
-          h('option', { key: 'size-18', value: '18' }, '18px')
+          h('option', { value: '12' }, '12px'),
+          h('option', { value: '14' }, '14px'),
+          h('option', { value: '16' }, '16px'),
+          h('option', { value: '18' }, '18px')
         ])
       ])
     ])
@@ -188,12 +183,12 @@ const App = createComponent<AppModel, AppMsg>(
       padding: '20px'
     };
 
-    return h('div', { key: 'app-container', className: 'app' }, [
-      h('div', { key: 'app-content', style: containerStyle }, [
+    return h('div', { className: 'app' }, [
+      h('div', { style: containerStyle }, [
         // Directly use the component's view function
         Settings.view(model.settings, settingsDispatch),
 
-        h('div', { key: 'content-container', className: 'themed-container' }, [
+        h('div', { className: 'themed-container' }, [
           // Use the render helper method
           Counter.render({
             key: 'counter',
@@ -201,12 +196,11 @@ const App = createComponent<AppModel, AppMsg>(
             dispatch: counterDispatch
           }),
 
-          h('div', { key: 'reset-section', className: 'reset-section' }, [
+          h('div', { className: 'reset-section' }, [
             h('button', {
-              key: 'reset-btn',
               onClick: () => dispatch({ type: 'RESET_COUNTER' })
             }, 'Reset Counter'),
-            h('p', { key: 'reset-count' }, `Counter has been reset ${model.resetCount} times`)
+            h('p', {}, `Counter has been reset ${model.resetCount} times`)
           ])
         ])
       ])
