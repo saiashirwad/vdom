@@ -2,8 +2,6 @@ import { produce, type Draft } from 'immer';
 import { type PropertyDispatch } from './dispatch';
 import type { VNode } from './vdom';
 
-type FC<P> = (props: P) => VNode;
-
 export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
   [K in TMsg['type']]: (params: {
     msg: Extract<TMsg, { type: K }>,
