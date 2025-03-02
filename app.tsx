@@ -1,6 +1,6 @@
 import { component } from './src/component';
 import { mapDispatch } from './src/dispatch';
-import { button, div, h3, input, label, option, p, select, span } from './src/elements';
+import { button, div, h, h3, input, label, option, p, select, span } from './src/elements';
 import { mount } from './src/mount';
 
 type CounterModel = {
@@ -26,21 +26,15 @@ const Counter = component<CounterModel, CounterMsg>(
     }
   },
   (model, dispatch) =>
-    div({ className: "counter" }, [
-      h3('Counter'),
-      div({ className: "controls" }, [
-        button({
-          onClick: () => dispatch.decrement()
-        }, '-'),
-        span({ className: "value" }, String(model.count)),
-        button({
-          onClick: () => dispatch.increment(),
-        }, "+"),
-        button({
-          onClick: () => dispatch.set({ value: 0 }),
-        }, "Reset")
-      ])
-    ])
+    <div className="counter">
+      <h3>Counter</h3>
+      <div className="controls">
+        <button onClick={() => dispatch.decrement()}>-</button>
+        <span className="value">{model.count}</span>
+        <button onClick={() => dispatch.increment()}>+</button>
+        <button onClick={() => dispatch.set({ value: 0 })}>Reset</button>
+      </div>
+    </div>
 );
 
 

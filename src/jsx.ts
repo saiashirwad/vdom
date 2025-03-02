@@ -15,8 +15,22 @@ declare global {
     interface Element extends VNode { }
 
     interface IntrinsicElements {
-      // HTML elements
-      a: any;
+      // HTML elements with specific types
+      div: HTMLAttributes;
+      span: HTMLAttributes;
+      p: HTMLAttributes;
+      h1: HTMLAttributes;
+      h2: HTMLAttributes;
+      h3: HTMLAttributes;
+      h4: HTMLAttributes;
+      h5: HTMLAttributes;
+      h6: HTMLAttributes;
+      button: ButtonHTMLAttributes;
+      input: InputHTMLAttributes;
+      select: SelectHTMLAttributes;
+      // Keep going for other elements you commonly use
+
+      // For elements you use less often, you can keep using any
       abbr: any;
       address: any;
       area: any;
@@ -30,7 +44,6 @@ declare global {
       blockquote: any;
       body: any;
       br: any;
-      button: any;
       canvas: any;
       caption: any;
       cite: any;
@@ -44,7 +57,6 @@ declare global {
       details: any;
       dfn: any;
       dialog: any;
-      div: any;
       dl: any;
       dt: any;
       em: any;
@@ -54,12 +66,6 @@ declare global {
       figure: any;
       footer: any;
       form: any;
-      h1: any;
-      h2: any;
-      h3: any;
-      h4: any;
-      h5: any;
-      h6: any;
       head: any;
       header: any;
       hr: any;
@@ -67,7 +73,6 @@ declare global {
       i: any;
       iframe: any;
       img: any;
-      input: any;
       ins: any;
       kbd: any;
       label: any;
@@ -86,7 +91,6 @@ declare global {
       optgroup: any;
       option: any;
       output: any;
-      p: any;
       param: any;
       picture: any;
       pre: any;
@@ -99,13 +103,8 @@ declare global {
       samp: any;
       script: any;
       section: any;
-      select: any;
       small: any;
       source: any;
-      span: any;
-      strong: any;
-      style: any;
-      sub: any;
       summary: any;
       sup: any;
       table: any;
@@ -129,17 +128,71 @@ declare global {
 
     // Add more specific props with better typing later:
     interface HTMLAttributes {
+      children?: ChildrenType;
       // Common attributes
       className?: string;
       id?: string;
       style?: string | object;
       key?: string;
+      title?: string;
+      tabIndex?: number;
+      role?: string;
+      ariaLabel?: string;
+      ariaDescribedBy?: string;
+      ariaHidden?: boolean | 'true' | 'false';
 
       // Event handlers
       onClick?: (event: MouseEvent) => void;
       onChange?: (event: Event) => void;
       onInput?: (event: InputEvent) => void;
-      // Add more as needed
+      onKeyDown?: (event: KeyboardEvent) => void;
+      onKeyUp?: (event: KeyboardEvent) => void;
+      onFocus?: (event: FocusEvent) => void;
+      onBlur?: (event: FocusEvent) => void;
+      onSubmit?: (event: Event) => void;
+      onMouseOver?: (event: MouseEvent) => void;
+      onMouseOut?: (event: MouseEvent) => void;
+    }
+
+    // Input element attributes
+    interface InputHTMLAttributes extends HTMLAttributes {
+      type?: 'text' | 'password' | 'checkbox' | 'radio' | 'number' | 'email' | 'tel' | 'url' | 'date' | 'time' | 'file';
+      value?: string | number | readonly string[];
+      checked?: boolean;
+      placeholder?: string;
+      disabled?: boolean;
+      required?: boolean;
+      name?: string;
+      autoComplete?: string;
+      min?: number | string;
+      max?: number | string;
+      pattern?: string;
+    }
+
+    // Button element attributes
+    interface ButtonHTMLAttributes extends HTMLAttributes {
+      type?: 'button' | 'submit' | 'reset';
+      disabled?: boolean;
+      name?: string;
+      value?: string | number | readonly string[];
+    }
+
+    // Select element attributes
+    interface SelectHTMLAttributes extends HTMLAttributes {
+      value?: string | number | readonly string[];
+      multiple?: boolean;
+      disabled?: boolean;
+      name?: string;
+      required?: boolean;
+      size?: number;
     }
   }
+}
+
+type ChildrenType = VNode | string | number | boolean | null | undefined | ChildrenType[];
+
+// And update the HTMLAttributes interface to include children
+interface HTMLAttributes {
+  children?: ChildrenType;
+  // ... other attributes
 } 
