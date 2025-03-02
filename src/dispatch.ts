@@ -29,14 +29,18 @@ export function createDispatch<TMsg extends { type: string }>(
 }
 
 /**
- * Creates a child component dispatch from a parent component dispatch property
+ * Infers the message type from a parent dispatch function property
  */
-export function createChildDispatch<TChildMsg extends { type: string }>(
-  parentDispatchFn: (msg: any) => void
-): PropertyDispatch<TChildMsg> {
-  return createDispatch((childMsg: TChildMsg) => {
-    parentDispatchFn({ msg: childMsg });
+type InferMessageType<T> = T extends (params?: { msg: infer M }) => void ? M : never;
+
+/**
+ * Creates a child component dispatch function from a parent component dispatch property
+ * Properly infers the message type from the parent dispatch function
+ */
+export function tagger<ParentDispatchFn extends (params?: { msg: any }) => void>(
+  parentDispatchFn: ParentDispatchFn
+): PropertyDispatch<InferMessageType<ParentDispatchFn>> {
+  return createDispatch((msg: InferMessageType<ParentDispatchFn>) => {
+    parentDispatchFn({ msg });
   });
 }
-
-

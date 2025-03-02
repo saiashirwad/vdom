@@ -27,7 +27,6 @@ export type Component<TModel, TMsg extends { type: string }> = {
   view: (model: TModel, dispatch: PropertyDispatch<TMsg>) => VNode;
   updateState: ((msg: TMsg, state: TModel) => TModel) &
   ((params: { msg: { msg: TMsg }, state: any }) => void);
-  render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => VNode;
 };
 
 export function component<TModel, TMsg extends { type: string }>(
@@ -66,10 +65,5 @@ export function component<TModel, TMsg extends { type: string }>(
     update,
     view,
     updateState: updateStateImpl as any,
-    render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
-      const baseDispatch = props.dispatch ?? (() => { });
-      const dispatch = createDispatch<TMsg>(baseDispatch);
-      return view(props.model ?? init(), dispatch);
-    }
   };
 }
