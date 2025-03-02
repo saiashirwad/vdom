@@ -127,20 +127,16 @@ const App = component<AppModel, AppMsg>(
       div([
         Settings.view(model.settings, settingsDispatch),
         div({ className: 'themed-container' }, [
-          Counter.render({
-            key: 'counter',
-            model: model.counter,
-            dispatch: counterDispatch
-          }),
-          div({ className: 'reset-section' }, [
-            button({
-              onClick: () => dispatch.resetCounter()
-            }, 'Reset Counter'),
-            p({}, `Counter has been reset ${model.resetCount} times`)
-          ])
+          Counter.view(model.counter, counterDispatch),
+        ]),
+        div({ className: 'reset-section' }, [
+          button({
+            onClick: () => dispatch.resetCounter()
+          }, 'Reset Counter'),
+          p({}, `Counter has been reset ${model.resetCount} times`)
         ])
       ])
-    ]);
+    ])
   }
 );
 
