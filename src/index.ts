@@ -25,18 +25,19 @@ const Counter = component<CounterModel, CounterMsg>(
       state.count = value;
     }
   },
-  (model, dispatch) => div({ className: 'counter' }, [
-    h3({}, 'Counter'),
-    div({ className: 'controls' }, [
-      button({
-        onClick: () => dispatch.decrement()
-      }, '-'),
-      span({ className: 'value' }, String(model.count)),
-      button({
-        onClick: () => dispatch.increment()
-      }, '+')
+  (model, dispatch) =>
+    div({ className: "counter" }, [
+      h3('Counter'),
+      div({ className: "controls" }, [
+        button({
+          onClick: () => dispatch.decrement()
+        }, '-'),
+        span({ className: "value" }, String(model.count)),
+        button({
+          onClick: () => dispatch.increment(),
+        }, "+")
+      ])
     ])
-  ])
 );
 
 
