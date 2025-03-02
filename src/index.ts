@@ -1,6 +1,7 @@
 import { createComponent } from './component';
 import { $ } from './elements';
 import { applyDiff, createElement, diff, type VNode } from './vdom';
+import { mount } from './mount';
 
 type CounterModel = {
   count: number;
@@ -149,28 +150,5 @@ const App = createComponent<AppModel, AppMsg>(
 );
 
 document.addEventListener('DOMContentLoaded', () => {
-  const root = document.getElementById('app') || document.body;
-  let currentVNode: VNode | null = null;
-
-  let appState = App.init();
-
-  const dispatch = (msg: AppMsg) => {
-    appState = App.updateState(msg, appState);
-    render();
-  };
-
-  const render = () => {
-    const newVNode = App.view(appState, dispatch);
-
-    if (!currentVNode) {
-      currentVNode = newVNode;
-      root.appendChild(createElement(newVNode));
-    } else {
-      const operations = diff(currentVNode, newVNode);
-      applyDiff(root, operations);
-      currentVNode = newVNode;
-    }
-  };
-
-  render();
+  mount(App, { rootId: 'app' });
 });
