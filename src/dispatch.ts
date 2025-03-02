@@ -37,7 +37,7 @@ type InferMessageType<T> = T extends (params?: { msg: infer M }) => void ? M : n
  * Creates a child component dispatch function from a parent component dispatch property
  * Properly infers the message type from the parent dispatch function
  */
-export function tagger<ParentDispatchFn extends (params?: { msg: any }) => void>(
+export function mapDispatch<ParentDispatchFn extends (params?: { msg: any }) => void>(
   parentDispatchFn: ParentDispatchFn
 ): PropertyDispatch<InferMessageType<ParentDispatchFn>> {
   return createDispatch((msg: InferMessageType<ParentDispatchFn>) => {

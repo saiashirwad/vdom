@@ -1,5 +1,5 @@
 import { component } from './component';
-import { tagger } from './dispatch';
+import { mapDispatch } from './dispatch';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
 
@@ -119,20 +119,20 @@ const App = component<AppModel, AppMsg>(
     }
   },
   (model, dispatch) => {
-    const settingsDispatch = tagger(dispatch.settings);
-    const counterDispatch = tagger(dispatch.counter);
+    const settingsDispatch = mapDispatch(dispatch.settings);
+    const counterDispatch = mapDispatch(dispatch.counter);
 
-    return div({ className: 'app' }, [
+    return div([
       div([
         Settings.view(model.settings, settingsDispatch),
         div({ className: 'themed-container' }, [
           Counter.view(model.counter, counterDispatch),
         ]),
-        div({ className: 'reset-section' }, [
+        div([
           button({
             onClick: () => dispatch.resetCounter()
           }, 'Reset Counter'),
-          p({}, `Counter has been reset ${model.resetCount} times`)
+          p(`Counter has been reset ${model.resetCount} times`)
         ])
       ])
     ])
