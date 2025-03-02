@@ -1,6 +1,6 @@
 {
   "name": "vdom",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

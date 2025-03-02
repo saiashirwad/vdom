@@ -1,11 +1,10 @@
-// Virtual DOM types
-interface VNode {
+export interface VNode {
   type: string | Function;
   props: { [key: string]: any };
   children: (VNode | string)[];
 }
 
-type DiffOperation =
+export type DiffOperation =
   | { action: 'CREATE', node: VNode }
   | { action: 'REMOVE', node: VNode }
   | { action: 'REPLACE', old: VNode, new: VNode }
@@ -14,14 +13,14 @@ type DiffOperation =
   | { action: 'CHILD_UPDATE', index: number, changes: DiffOperation[] };
 
 // Hyperscript function to create VNodes
-function h(type: string | Function, props: { [key: string]: any } = {}, children: VNode | string | (VNode | string)[] = []): VNode {
+export function h(type: string | Function, props: { [key: string]: any } = {}, children: VNode | string | (VNode | string)[] = []): VNode {
   // Convert single child to array for consistent handling
   const childrenArray = Array.isArray(children) ? children : [children];
   return { type, props, children: childrenArray };
 }
 
 // Simple diff function (minimal for demonstration)
-function diff(oldNode: VNode | null, newNode: VNode | null): DiffOperation[] {
+export function diff(oldNode: VNode | null, newNode: VNode | null): DiffOperation[] {
   if (!oldNode) return [{ action: 'CREATE', node: newNode! }];
   if (!newNode) return [{ action: 'REMOVE', node: oldNode }];
   if (oldNode.type !== newNode.type) return [{ action: 'REPLACE', old: oldNode, new: newNode }];
@@ -31,7 +30,7 @@ function diff(oldNode: VNode | null, newNode: VNode | null): DiffOperation[] {
 }
 
 // Render function to create DOM elements
-function createElement(vnode: VNode): HTMLElement | Text {
+export function createElement(vnode: VNode): HTMLElement | Text {
   if (typeof vnode.type === 'string') {
     const element = document.createElement(vnode.type);
 
@@ -66,7 +65,7 @@ function createElement(vnode: VNode): HTMLElement | Text {
 }
 
 // Apply diff operations (minimal for demonstration)
-function applyDiff(parent: HTMLElement, changes: DiffOperation[]): void {
+export function applyDiff(parent: HTMLElement, changes: DiffOperation[]): void {
   changes.forEach(change => {
     if (change.action === 'CREATE') {
       parent.appendChild(createElement(change.node));
@@ -81,9 +80,29 @@ function applyDiff(parent: HTMLElement, changes: DiffOperation[]): void {
 // Component system
 const componentStates = new Map<string, any>();
 const componentUpdates = new Map<string, (msg: any, model: any) => any>();
-let globalRender: () => void;
+let globalRender: (() => void) | null = null;
 
-function component<Model, Msg>(
+// Create app is now exported from the VDOM module
+export function createApp(rootElement: HTMLElement, view: () => VNode): void {
+  let currentVNode: VNode | null = null;
+
+  function render() {
+    const newVNode = view();
+    if (!currentVNode) {
+      rootElement.appendChild(createElement(newVNode));
+    } else {
+      const changes = diff(currentVNode, newVNode);
+      applyDiff(rootElement, changes);
+    }
+    currentVNode = newVNode;
+  }
+
+  // Set the global render function internally
+  globalRender = render;
+  render();
+}
+
+export function component<Model, Msg>(
   componentType: string,
   init: () => Model,
   update: (msg: Msg, model: Model) => Model,
@@ -104,76 +123,3 @@ function component<Model, Msg>(
     return view(model, dispatch);
   };
 }
-
-// Button component
-type ButtonModel = { clicks: number };
-type ButtonMsg = { type: 'CLICK' };
-
-const Button = component<ButtonModel, ButtonMsg>(
-  'BUTTON',
-  () => ({ clicks: 0 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'CLICK': return { ...model, clicks: model.clicks + 1 };
-      default: return model;
-    }
-  },
-  (model, dispatch) => h('button', {
-    onClick: () => dispatch({ type: 'CLICK' })
-  }, `Clicked ${model.clicks} times`)
-);
-
-// Counter component
-type CounterModel = { count: number };
-type CounterMsg = { type: 'INCREMENT' } | { type: 'DECREMENT' };
-
-const Counter = component<CounterModel, CounterMsg>(
-  'COUNTER',
-  () => ({ count: 0 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'INCREMENT': return { ...model, count: model.count + 1 };
-      case 'DECREMENT': return { ...model, count: model.count - 1 };
-      default: return model;
-    }
-  },
-  (model, dispatch) => h('div', {}, [
-    h('button', { onClick: () => dispatch({ type: 'DECREMENT' }) }, '-'),
-    h('span', {}, ` ${model.count} `),
-    h('button', { onClick: () => dispatch({ type: 'INCREMENT' }) }, '+')
-  ])
-);
-
-
-function createApp(root: HTMLElement) {
-  let currentVNode: VNode | null = null;
-
-  function render() {
-    const newVNode = appView();
-    if (!currentVNode) {
-      root.appendChild(createElement(newVNode));
-    } else {
-      const changes = diff(currentVNode, newVNode);
-      applyDiff(root, changes);
-    }
-    currentVNode = newVNode;
-  }
-
-  function appView(): VNode {
-    return h('div', {}, [
-      h('h1', {}, 'Component Examples'),
-      Button({ key: 'button1' }),
-      Button({ key: 'button2' }),
-      Counter({ key: 'counter1' })
-    ]);
-  }
-
-  globalRender = render;
-  render();
-}
-
-// Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
-  const root = document.getElementById('app') || document.body;
-  createApp(root);
-});
