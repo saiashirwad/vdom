@@ -2,55 +2,130 @@ export interface VNode {
   type: string | Function;
   props: { [key: string]: any };
   children: (VNode | string)[];
+  domRef?: HTMLElement | Text;
+  eventCache?: { [eventName: string]: EventListenerOrEventListenerObject };
 }
 
 export type DiffOperation =
   | { action: 'CREATE', node: VNode }
   | { action: 'REMOVE', node: VNode }
   | { action: 'REPLACE', old: VNode, new: VNode }
-  | { action: 'UPDATE_ATTRIBUTE', key: string, value: any }
-  | { action: 'REMOVE_ATTRIBUTE', key: string }
-  | { action: 'CHILD_UPDATE', index: number, changes: DiffOperation[] };
+  | { action: 'UPDATE', old: VNode, new: VNode };
 
-// Hyperscript function to create VNodes
 export function h(type: string | Function, props: { [key: string]: any } = {}, children: VNode | string | (VNode | string)[] = []): VNode {
-  // Convert single child to array for consistent handling
   const childrenArray = Array.isArray(children) ? children : [children];
   return { type, props, children: childrenArray };
 }
 
-// Simple diff function (minimal for demonstration)
+function isComponent(vnode: VNode): boolean {
+  return typeof vnode.type === 'function';
+}
+
+function shallowEqual(obj1: { [key: string]: any }, obj2: { [key: string]: any }): boolean {
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) return false;
+
+  return keys1.every(key => {
+    if (key.startsWith('on')) return true;
+    return obj1[key] === obj2[key];
+  });
+}
+
 export function diff(oldNode: VNode | null, newNode: VNode | null): DiffOperation[] {
   if (!oldNode) return [{ action: 'CREATE', node: newNode! }];
   if (!newNode) return [{ action: 'REMOVE', node: oldNode }];
-  if (oldNode.type !== newNode.type) return [{ action: 'REPLACE', old: oldNode, new: newNode }];
 
-  // For simplicity, we'll just replace the entire node
-  return [{ action: 'REPLACE', old: oldNode, new: newNode }];
+  if (typeof oldNode.type === 'function' && typeof newNode.type === 'function') {
+    newNode.domRef = oldNode.domRef;
+    newNode.eventCache = oldNode.eventCache || {};
+    return [];
+  }
+
+  if (oldNode.type !== newNode.type) {
+    return [{ action: 'REPLACE', old: oldNode, new: newNode }];
+  }
+
+  if (areNodesEqual(oldNode, newNode)) {
+    newNode.domRef = oldNode.domRef;
+    newNode.eventCache = oldNode.eventCache || {};
+    return [];
+  }
+
+  return [{ action: 'UPDATE', old: oldNode, new: newNode }];
 }
 
-// Render function to create DOM elements
+function areNodesEqual(a: VNode, b: VNode): boolean {
+  if (a.type !== b.type) return false;
+
+  const aProps = Object.entries(a.props).filter(([key]) => !key.startsWith('on'));
+  const bProps = Object.entries(b.props).filter(([key]) => !key.startsWith('on'));
+
+  if (aProps.length !== bProps.length) return false;
+
+  for (const [key, value] of aProps) {
+    if (key === 'key' || key === 'componentKey') continue;
+    if (value !== b.props[key]) return false;
+  }
+
+  if (a.children.length !== b.children.length) return false;
+
+  for (let i = 0; i < a.children.length; i++) {
+    const aChild = a.children[i];
+    const bChild = b.children[i];
+
+    if (typeof aChild !== typeof bChild) return false;
+
+    if (typeof aChild === 'string' && typeof bChild === 'string') {
+      if (aChild !== bChild) return false;
+    } else if (typeof aChild !== 'string' && typeof bChild !== 'string') {
+      if (!areNodesEqual(aChild, bChild)) return false;
+    }
+  }
+
+  return true;
+}
+
 export function createElement(vnode: VNode): HTMLElement | Text {
+  if (typeof vnode === 'string' || vnode.type === 'TEXT') {
+    const content = typeof vnode === 'string' ? vnode : String(vnode.children[0]);
+    const textNode = document.createTextNode(content);
+    if (typeof vnode !== 'string') vnode.domRef = textNode;
+    return textNode;
+  }
+
   if (typeof vnode.type === 'string') {
     const element = document.createElement(vnode.type);
+    vnode.domRef = element;
+    vnode.eventCache = {};
 
-    // Set attributes and event listeners
-    for (const [key, value] of Object.entries(vnode.props)) {
-      if (key.startsWith('on') && typeof value === 'function') {
-        const eventName = key.slice(2).toLowerCase();
-        element.addEventListener(eventName, value);
-      } else {
+    Object.entries(vnode.props).forEach(([key, value]) => {
+      if (key.startsWith('on')) return;
+
+      if (key === 'className') {
+        element.className = value;
+      } else if (key === 'style' && typeof value === 'string') {
+        element.setAttribute('style', value);
+      } else if (key !== 'key' && key !== 'componentKey') {
         element.setAttribute(key, value);
       }
-    }
+    });
 
-    // Append children
+    Object.entries(vnode.props)
+      .filter(([key]) => key.startsWith('on') && typeof vnode.props[key] === 'function')
+      .forEach(([key, handler]) => {
+        const eventName = key.slice(2).toLowerCase();
+        element.addEventListener(eventName, handler as EventListener);
+        vnode.eventCache![eventName] = handler as EventListener;
+      });
+
     vnode.children.forEach(child => {
-      if (typeof child === 'string') {
-        element.appendChild(document.createTextNode(child));
-      } else {
-        element.appendChild(createElement(child));
-      }
+      element.appendChild(
+        typeof child === 'string'
+          ? document.createTextNode(child)
+          : createElement(child)
+      );
     });
 
     return element;
@@ -58,46 +133,255 @@ export function createElement(vnode: VNode): HTMLElement | Text {
 
   if (typeof vnode.type === 'function') {
     const childVNode = vnode.type(vnode.props);
-    return createElement(childVNode);
+    const element = createElement(childVNode);
+    vnode.domRef = element;
+    return element;
   }
 
-  throw new Error('Unknown node type');
+  throw new Error(`Unknown node type: ${vnode.type}`);
 }
 
-// Apply diff operations (minimal for demonstration)
-export function applyDiff(parent: HTMLElement, changes: DiffOperation[]): void {
-  changes.forEach(change => {
-    if (change.action === 'CREATE') {
-      parent.appendChild(createElement(change.node));
-    } else if (change.action === 'REMOVE') {
-      parent.removeChild(parent.lastChild!);
-    } else if (change.action === 'REPLACE') {
-      parent.replaceChild(createElement(change.new), parent.lastChild!);
+export function applyDiff(parent: HTMLElement, operations: DiffOperation[]): void {
+  operations.forEach(op => {
+    if (op.action === 'CREATE') {
+      parent.appendChild(createElement(op.node));
+    }
+    else if (op.action === 'REMOVE') {
+      if (op.node.domRef && op.node.domRef.parentNode === parent) {
+        cleanupEventHandlers(op.node);
+        parent.removeChild(op.node.domRef);
+      }
+    }
+    else if (op.action === 'REPLACE') {
+      if (op.old.domRef && op.old.domRef.parentNode === parent) {
+        cleanupEventHandlers(op.old);
+        const newElement = createElement(op.new);
+        parent.replaceChild(newElement, op.old.domRef);
+      }
+    }
+    else if (op.action === 'UPDATE') {
+      updateElement(op.old.domRef as HTMLElement, op.old, op.new);
     }
   });
 }
 
-// Component system
+function cleanupEventHandlers(vnode: VNode): void {
+  if (!vnode.domRef || !vnode.eventCache) return;
+
+  Object.entries(vnode.eventCache).forEach(([eventName, handler]) => {
+    vnode.domRef!.removeEventListener(eventName, handler);
+  });
+
+  vnode.children.forEach(child => {
+    if (typeof child !== 'string') {
+      cleanupEventHandlers(child);
+    }
+  });
+}
+
+function updateElement(element: HTMLElement, oldVNode: VNode, newVNode: VNode): void {
+  newVNode.domRef = element;
+  newVNode.eventCache = oldVNode.eventCache || {};
+
+  updateProps(element, oldVNode.props, newVNode.props, newVNode.eventCache);
+  updateChildrenEfficiently(element, oldVNode.children, newVNode.children);
+}
+
+function updateProps(
+  element: HTMLElement,
+  oldProps: { [key: string]: any },
+  newProps: { [key: string]: any },
+  eventCache: { [key: string]: EventListenerOrEventListenerObject }
+): void {
+  Object.keys(oldProps).forEach(key => {
+    if (key.startsWith('on')) return;
+    if (!(key in newProps) && key !== 'key' && key !== 'componentKey') {
+      if (key === 'className') {
+        element.className = '';
+      } else {
+        element.removeAttribute(key);
+      }
+    }
+  });
+
+  Object.entries(newProps).forEach(([key, value]) => {
+    if (key.startsWith('on')) return;
+
+    if (oldProps[key] === value) return;
+
+    if (key === 'className') {
+      element.className = value;
+    } else if (key === 'value' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) {
+      if (element.value !== value) {
+        const isActive = document.activeElement === element;
+        const start = isActive ? element.selectionStart : null;
+        const end = isActive ? element.selectionEnd : null;
+
+        element.value = value;
+
+        if (isActive && start !== null && end !== null) {
+          element.setSelectionRange(start, end);
+        }
+      }
+    } else if (key === 'style' && typeof value === 'string') {
+      element.setAttribute('style', value);
+    } else if (key !== 'key' && key !== 'componentKey') {
+      element.setAttribute(key, value);
+    }
+  });
+
+  Object.keys(eventCache).forEach(eventName => {
+    const propName = 'on' + eventName.charAt(0).toUpperCase() + eventName.slice(1);
+    if (!(propName in newProps)) {
+      element.removeEventListener(eventName, eventCache[eventName]);
+      delete eventCache[eventName];
+    }
+  });
+
+  Object.entries(newProps)
+    .filter(([key]) => key.startsWith('on') && typeof newProps[key] === 'function')
+    .forEach(([key, handler]) => {
+      const eventName = key.slice(2).toLowerCase();
+      const oldHandler = eventCache[eventName];
+
+      if (oldHandler !== handler) {
+        if (oldHandler) {
+          element.removeEventListener(eventName, oldHandler);
+        }
+
+        element.addEventListener(eventName, handler as EventListener);
+        eventCache[eventName] = handler as EventListener;
+      }
+    });
+}
+
+function updateChildrenEfficiently(
+  parent: HTMLElement,
+  oldChildren: (VNode | string)[],
+  newChildren: (VNode | string)[]
+): void {
+  const domChildren = Array.from(parent.childNodes);
+
+  if (oldChildren.length === 0 && newChildren.length === 0) return;
+
+  if (oldChildren.length === 1 && newChildren.length === 1) {
+    const oldChild = oldChildren[0];
+    const newChild = newChildren[0];
+
+    if (typeof oldChild === typeof newChild) {
+      if (typeof oldChild === 'string' && typeof newChild === 'string') {
+        if (oldChild !== newChild && domChildren[0]) {
+          domChildren[0].textContent = newChild;
+        }
+        return;
+      } else if (typeof oldChild !== 'string' && typeof newChild !== 'string') {
+        updateElement(domChildren[0] as HTMLElement, oldChild, newChild);
+        return;
+      }
+    }
+  }
+
+  const oldKeyMap = new Map();
+
+  const handledIndices = new Set<number>();
+
+  oldChildren.forEach((child, i) => {
+    if (typeof child !== 'string' && child.props.key) {
+      oldKeyMap.set(child.props.key, { node: child, index: i });
+    }
+  });
+
+  newChildren.forEach((newChild, newIndex) => {
+    if (typeof newChild !== 'string' && newChild.props.key && oldKeyMap.has(newChild.props.key)) {
+      const { node: oldChild, index: oldIndex } = oldKeyMap.get(newChild.props.key);
+
+      if (oldIndex < domChildren.length) {
+        updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
+        handledIndices.add(oldIndex);
+        handledIndices.add(newIndex);
+      }
+    }
+  });
+
+  const oldNonKeyed = oldChildren
+    .map((child, i) => ({ child, index: i }))
+    .filter(({ index }) => !handledIndices.has(index));
+
+  const newNonKeyed = newChildren
+    .map((child, i) => ({ child, index: i }))
+    .filter(({ index }) => !handledIndices.has(index));
+
+  const minLength = Math.min(oldNonKeyed.length, newNonKeyed.length);
+
+  for (let i = 0; i < minLength; i++) {
+    const { child: oldChild, index: oldIndex } = oldNonKeyed[i];
+    const { child: newChild, index: newIndex } = newNonKeyed[i];
+
+    if (typeof oldChild === 'string' && typeof newChild === 'string') {
+      if (oldChild !== newChild && oldIndex < domChildren.length) {
+        domChildren[oldIndex].textContent = newChild;
+      }
+    } else if (typeof oldChild !== 'string' && typeof newChild !== 'string') {
+      if (oldIndex < domChildren.length) {
+        updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
+      }
+    } else {
+      if (oldIndex < domChildren.length) {
+        const newNode = typeof newChild === 'string'
+          ? document.createTextNode(newChild)
+          : createElement(newChild);
+
+        parent.replaceChild(newNode, domChildren[oldIndex]);
+      }
+    }
+  }
+
+  for (let i = oldNonKeyed.length - 1; i >= newNonKeyed.length; i--) {
+    const { index: oldIndex } = oldNonKeyed[i];
+
+    if (oldIndex < domChildren.length) {
+      parent.removeChild(domChildren[oldIndex]);
+    }
+  }
+
+  for (let i = minLength; i < newNonKeyed.length; i++) {
+    const { child: newChild } = newNonKeyed[i];
+
+    const newNode = typeof newChild === 'string'
+      ? document.createTextNode(newChild)
+      : createElement(newChild);
+
+    parent.appendChild(newNode);
+  }
+}
+
 const componentStates = new Map<string, any>();
 const componentUpdates = new Map<string, (msg: any, model: any) => any>();
 let globalRender: (() => void) | null = null;
+let renderPending = false;
 
-// Create app is now exported from the VDOM module
 export function createApp(rootElement: HTMLElement, view: () => VNode): void {
   let currentVNode: VNode | null = null;
 
   function render() {
-    const newVNode = view();
-    if (!currentVNode) {
-      rootElement.appendChild(createElement(newVNode));
-    } else {
-      const changes = diff(currentVNode, newVNode);
-      applyDiff(rootElement, changes);
-    }
-    currentVNode = newVNode;
+    if (renderPending) return;
+    renderPending = true;
+
+    requestAnimationFrame(() => {
+      const newVNode = view();
+
+      if (!currentVNode) {
+        rootElement.appendChild(createElement(newVNode));
+      } else {
+        const operations = diff(currentVNode, newVNode);
+        applyDiff(rootElement, operations);
+      }
+
+      currentVNode = newVNode;
+      renderPending = false;
+    });
   }
 
-  // Set the global render function internally
   globalRender = render;
   render();
 }
@@ -109,17 +393,42 @@ export function component<Model, Msg>(
   view: (model: Model, dispatch: (msg: Msg) => void) => VNode
 ): (props: { key: string }) => VNode {
   componentUpdates.set(componentType, update as (msg: any, model: any) => any);
+
   return function Component(props: { key: string }): VNode {
-    if (!componentStates.has(props.key)) {
-      componentStates.set(props.key, init());
+    const componentKey = props.key;
+
+    if (!componentStates.has(componentKey)) {
+      componentStates.set(componentKey, init());
     }
-    const model = componentStates.get(props.key)!;
+
+    const model = componentStates.get(componentKey)!;
+
     const dispatch = (msg: Msg) => {
       const updateFn = componentUpdates.get(componentType)!;
-      const newModel = updateFn(msg, model);
-      componentStates.set(props.key, newModel);
-      if (globalRender) globalRender();
+      const oldModel = model;
+      const newModel = updateFn(msg, oldModel);
+
+      if (JSON.stringify(oldModel) !== JSON.stringify(newModel)) {
+        componentStates.set(componentKey, { ...newModel });
+
+        const activeElement = document.activeElement;
+
+        if (globalRender) globalRender();
+
+        if (activeElement && document.contains(activeElement)) {
+          (activeElement as HTMLElement).focus();
+        }
+      }
     };
-    return view(model, dispatch);
+
+    const rendered = view(model, dispatch);
+
+    rendered.props = {
+      ...rendered.props,
+      componentKey,
+      key: rendered.props.key || componentKey
+    };
+
+    return rendered;
   };
 }
