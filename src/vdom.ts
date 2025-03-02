@@ -349,7 +349,7 @@ function updateChildrenEfficiently(
             parent.replaceChild(textNode, domNode);
           }
         } else if (typeof newChild !== 'string' && typeof oldChild !== 'string') {
-          updateElement(domNode as HTMLElement, oldChild, newChild);
+          updateElement(domNode as HTMLElement, oldChild as VNode, newChild as VNode);
         } else {
           const elementNode = createElement(newChild as VNode);
           parent.replaceChild(elementNode, domNode);

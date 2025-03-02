@@ -152,7 +152,6 @@ const TodoList = component<TodoListModel, TodoListMsg>(
       )
     ]),
 
-    // Stats
     h('div', { key: 'todo-stats', className: 'stats' }, [
       h('span', { key: 'todo-total' }, `Total: ${model.todos.length}`),
       h('span', { key: 'todo-completed' }, `Completed: ${model.todos.filter(t => t.completed).length}`)
