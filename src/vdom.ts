@@ -12,26 +12,44 @@ export type DiffOperation =
   | { action: 'REPLACE', old: VNode, new: VNode }
   | { action: 'UPDATE', old: VNode, new: VNode };
 
-export function h(type: string | Function, props: { [key: string]: any } = {}, children: VNode | string | (VNode | string)[] = []): VNode {
-  const childrenArray = Array.isArray(children) ? children : [children];
-  return { type, props, children: childrenArray };
+export function h(type: string | Function, props: { [key: string]: any } = {}, ...childrenArgs: any[]): VNode {
+  let children: (VNode | string)[] = [];
+
+  const flattenChildren = (items: any[]): (VNode | string)[] => {
+    return items.reduce((acc: (VNode | string)[], item) => {
+      if (item === null || item === undefined || item === false) {
+        return acc;
+      } else if (Array.isArray(item)) {
+        return [...acc, ...flattenChildren(item)];
+      } else if (typeof item === 'object' || typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+        return [...acc, typeof item === 'number' || typeof item === 'boolean' ? String(item) : item];
+      }
+      return acc;
+    }, []);
+  };
+
+  if (childrenArgs.length > 0) {
+    children = flattenChildren(childrenArgs);
+  } else if (props && props.children) {
+    const childrenProp = props.children;
+    delete props.children;
+
+    if (Array.isArray(childrenProp)) {
+      children = flattenChildren(childrenProp);
+    } else if (childrenProp != null) {
+      children = [typeof childrenProp === 'number' || typeof childrenProp === 'boolean'
+        ? String(childrenProp)
+        : childrenProp];
+    }
+  }
+
+  if (type === 'Fragment') {
+    return { type: 'fragment', props: {}, children };
+  }
+
+  return { type, props: props || {}, children };
 }
 
-function isComponent(vnode: VNode): boolean {
-  return typeof vnode.type === 'function';
-}
-
-function shallowEqual(obj1: { [key: string]: any }, obj2: { [key: string]: any }): boolean {
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-
-  if (keys1.length !== keys2.length) return false;
-
-  return keys1.every(key => {
-    if (key.startsWith('on')) return true;
-    return obj1[key] === obj2[key];
-  });
-}
 
 export function diff(oldNode: VNode | null, newNode: VNode | null): DiffOperation[] {
   if (!oldNode) return [{ action: 'CREATE', node: newNode! }];
@@ -87,7 +105,19 @@ function areNodesEqual(a: VNode, b: VNode): boolean {
   return true;
 }
 
-export function createElement(vnode: VNode): HTMLElement | Text {
+export function createElement(vnode: VNode): HTMLElement | Text | DocumentFragment {
+  if (vnode.type === 'fragment') {
+    const fragment = document.createDocumentFragment();
+    vnode.children.forEach(child => {
+      fragment.appendChild(
+        typeof child === 'string'
+          ? document.createTextNode(child)
+          : createElement(child)
+      );
+    });
+    return fragment;
+  }
+
   if (typeof vnode === 'string' || vnode.type === 'TEXT') {
     const content = typeof vnode === 'string' ? vnode : String(vnode.children[0]);
     const textNode = document.createTextNode(content);
@@ -134,6 +164,7 @@ export function createElement(vnode: VNode): HTMLElement | Text {
   if (typeof vnode.type === 'function') {
     const childVNode = vnode.type(vnode.props);
     const element = createElement(childVNode);
+    // @ts-ignore
     vnode.domRef = element;
     return element;
   }
@@ -372,13 +403,9 @@ function updateChildrenEfficiently(
   }
 }
 
-const componentStates = new Map<string, any>();
-const componentUpdates = new Map<string, (msg: any, model: any) => any>();
-let globalRender: (() => void) | null = null;
-let renderPending = false;
-
 export function createApp(rootElement: HTMLElement, view: () => VNode): void {
   let currentVNode: VNode | null = null;
+  let renderPending = false;
 
   function render() {
     if (renderPending) return;
@@ -399,165 +426,7 @@ export function createApp(rootElement: HTMLElement, view: () => VNode): void {
     });
   }
 
-  globalRender = render;
   render();
 }
 
 export type Cmd<Msg> = ((dispatch: (msg: Msg) => void) => void) | null;
-
-function createDispatcher<Model, Msg>(
-  componentType: string,
-  componentKey: string
-) {
-  return function dispatch(msg: Msg) {
-    const updateFn = componentUpdates.get(componentType)!;
-    const oldModel = componentStates.get(componentKey)!;
-
-    let newModel: Model;
-    let cmd: Cmd<Msg> | null = null;
-
-    const result = produce(oldModel, (draft) => {
-      return updateFn(msg, draft);
-    });
-
-    if (Array.isArray(result) && result.length === 2) {
-      [newModel, cmd] = result as [Model, Cmd<Msg>];
-    } else {
-      newModel = result as Model;
-    }
-
-    if (JSON.stringify(oldModel) !== JSON.stringify(newModel)) {
-      componentStates.set(componentKey, newModel);
-
-      if (cmd) {
-        cmd(dispatch);
-      }
-
-      if (globalRender) globalRender();
-    } else if (cmd) {
-      cmd(dispatch);
-    }
-  };
-}
-
-/**
- * Type-safe pattern matching for message handling
- */
-export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
-  [K in TMsg['type']]: (
-    // Extract the specific message type based on the 'type' property
-    msg: Extract<TMsg, { type: K }>,
-    state: TModel
-  ) => TResult;
-};
-
-/**
- * Pattern matching function for handling messages in a type-safe way
- */
-export function match<TMsg extends { type: string }, TModel, TResult>(
-  msg: TMsg,
-  patterns: Pattern<TMsg, TModel, TResult>,
-  state: TModel
-): TResult {
-  if (!(msg.type in patterns)) {
-    throw new Error(`No pattern matching handler for message type: ${msg.type}`);
-  }
-  const handler = patterns[msg.type as keyof typeof patterns] as (msg: TMsg, state: TModel) => TResult;
-  return handler(msg, state);
-}
-
-export type Command<TMsg> = Cmd<TMsg>;
-export type Dispatch<TMsg> = (msg: TMsg) => void;
-export type Component<TProps> = (props: Omit<TProps, 'key'> & { key: string }) => VNode;
-
-export function component<TModel, TMsg extends { type: string }>(
-  name: string,
-  init: () => [TModel, Command<TMsg> | null],
-  update:
-    | ((msg: TMsg, state: Draft<TModel>) => void | null | [TModel, Command<TMsg>])
-    | Pattern<TMsg, Draft<TModel>, void | null | [TModel, Command<TMsg>]>,
-  view: (model: TModel, dispatch: Dispatch<TMsg>) => VNode
-): (props: { key: string }) => VNode {
-  // Create the update function that handles both pattern matching and traditional approach
-  const updateFn = typeof update === 'function'
-    ? update
-    : (msg: TMsg, state: Draft<TModel>) => match(msg, update as Pattern<TMsg, Draft<TModel>, void | null | [TModel, Command<TMsg>]>, state);
-
-  componentUpdates.set(name, updateFn as any);
-
-  return function Component(props: { key: string }): VNode {
-    const componentKey = props.key;
-
-    if (!componentStates.has(componentKey)) {
-      const [initialModel, initialCmd] = init();
-      componentStates.set(componentKey, initialModel);
-
-      if (initialCmd) {
-        const dispatch = createDispatcher(name, componentKey);
-        initialCmd(dispatch);
-      }
-    }
-
-    const model = componentStates.get(componentKey)!;
-    const dispatch = createDispatcher(name, componentKey);
-
-    return view(model, dispatch);
-  };
-}
-
-export function program<Model, Msg>(config: {
-  init: () => [Model, Cmd<Msg>],
-  update: (msg: Msg, model: Model) => [Model, Cmd<Msg>],
-  view: (model: Model, dispatch: (msg: Msg) => void) => VNode,
-  node: HTMLElement
-}) {
-  let currentModel = config.init()[0];
-  let currentVNode: VNode | null = null;
-
-  function dispatch(msg: Msg) {
-    const [newModel, cmd] = config.update(msg, currentModel);
-    currentModel = newModel;
-
-    if (cmd) {
-      cmd(dispatch);
-    }
-
-    render();
-  }
-
-  function render() {
-    if (renderPending) return;
-    renderPending = true;
-
-    requestAnimationFrame(() => {
-      const newVNode = config.view(currentModel, dispatch);
-
-      if (!currentVNode) {
-        config.node.appendChild(createElement(newVNode));
-      } else {
-        const operations = diff(currentVNode, newVNode);
-        applyDiff(config.node, operations);
-      }
-
-      currentVNode = newVNode;
-      renderPending = false;
-    });
-  }
-
-  render();
-}
-
-export type Draft<T> = T;
-
-export function produce<S, R>(baseState: S, recipe: (draft: Draft<S>) => R): S {
-  const draft = JSON.parse(JSON.stringify(baseState)) as S;
-  const result = recipe(draft as Draft<S>);
-
-  if (result === undefined) {
-    return draft;
-  } else if (result === null) {
-    return baseState;
-  } else {
-    return result as unknown as S;
-  }
-}
