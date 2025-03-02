@@ -264,26 +264,10 @@ function updateChildrenEfficiently(
 
   if (oldChildren.length === 0 && newChildren.length === 0) return;
 
-  if (oldChildren.length === 1 && newChildren.length === 1) {
-    const oldChild = oldChildren[0];
-    const newChild = newChildren[0];
-
-    if (typeof oldChild === typeof newChild) {
-      if (typeof oldChild === 'string' && typeof newChild === 'string') {
-        if (oldChild !== newChild && domChildren[0]) {
-          domChildren[0].textContent = newChild;
-        }
-        return;
-      } else if (typeof oldChild !== 'string' && typeof newChild !== 'string') {
-        updateElement(domChildren[0] as HTMLElement, oldChild, newChild);
-        return;
-      }
-    }
-  }
-
   const oldKeyMap = new Map();
+  const newKeyMap = new Map();
 
-  const handledIndices = new Set<number>();
+  const handledDomIndices = new Set<number>();
 
   oldChildren.forEach((child, i) => {
     if (typeof child !== 'string' && child.props.key) {
@@ -291,67 +275,100 @@ function updateChildrenEfficiently(
     }
   });
 
-  newChildren.forEach((newChild, newIndex) => {
-    if (typeof newChild !== 'string' && newChild.props.key && oldKeyMap.has(newChild.props.key)) {
-      const { node: oldChild, index: oldIndex } = oldKeyMap.get(newChild.props.key);
-
-      if (oldIndex < domChildren.length) {
-        updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
-        handledIndices.add(oldIndex);
-        handledIndices.add(newIndex);
-      }
+  newChildren.forEach((child, i) => {
+    if (typeof child !== 'string' && child.props.key) {
+      newKeyMap.set(child.props.key, { node: child, index: i });
     }
   });
 
-  const oldNonKeyed = oldChildren
-    .map((child, i) => ({ child, index: i }))
-    .filter(({ index }) => !handledIndices.has(index));
+  for (let i = oldChildren.length - 1; i >= 0; i--) {
+    const oldChild = oldChildren[i];
 
-  const newNonKeyed = newChildren
-    .map((child, i) => ({ child, index: i }))
-    .filter(({ index }) => !handledIndices.has(index));
+    if (typeof oldChild === 'string' || !oldChild.props.key) continue;
 
-  const minLength = Math.min(oldNonKeyed.length, newNonKeyed.length);
+    if (!newKeyMap.has(oldChild.props.key)) {
+      if (i < domChildren.length) {
+        if (typeof oldChild !== 'string') {
+          cleanupEventHandlers(oldChild);
+        }
+        parent.removeChild(domChildren[i]);
 
-  for (let i = 0; i < minLength; i++) {
-    const { child: oldChild, index: oldIndex } = oldNonKeyed[i];
-    const { child: newChild, index: newIndex } = newNonKeyed[i];
-
-    if (typeof oldChild === 'string' && typeof newChild === 'string') {
-      if (oldChild !== newChild && oldIndex < domChildren.length) {
-        domChildren[oldIndex].textContent = newChild;
+        domChildren.splice(i, 1);
       }
-    } else if (typeof oldChild !== 'string' && typeof newChild !== 'string') {
-      if (oldIndex < domChildren.length) {
-        updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
+    }
+  }
+
+  for (let i = 0; i < newChildren.length; i++) {
+    const newChild = newChildren[i];
+
+    if (typeof newChild !== 'string' && newChild.props.key) {
+      if (oldKeyMap.has(newChild.props.key)) {
+        const { node: oldChild, index: oldIndex } = oldKeyMap.get(newChild.props.key);
+
+        if (oldIndex < domChildren.length) {
+          updateElement(domChildren[oldIndex] as HTMLElement, oldChild, newChild);
+          handledDomIndices.add(oldIndex);
+        } else {
+          const newElement = createElement(newChild);
+
+          if (i < domChildren.length) {
+            parent.insertBefore(newElement, domChildren[i]);
+          } else {
+            parent.appendChild(newElement);
+          }
+        }
+      } else {
+        const newElement = createElement(newChild);
+
+        if (i < domChildren.length) {
+          parent.insertBefore(newElement, domChildren[i]);
+        } else {
+          parent.appendChild(newElement);
+        }
       }
     } else {
-      if (oldIndex < domChildren.length) {
-        const newNode = typeof newChild === 'string'
-          ? document.createTextNode(newChild)
-          : createElement(newChild);
+      const isStringNewChild = typeof newChild === 'string';
 
-        parent.replaceChild(newNode, domChildren[oldIndex]);
+      if (i < domChildren.length) {
+        const domNode = domChildren[i];
+        const oldChild = i < oldChildren.length ? oldChildren[i] : null;
+
+        if (handledDomIndices.has(i)) {
+          const newNode = isStringNewChild
+            ? document.createTextNode(newChild)
+            : createElement(newChild);
+
+          parent.insertBefore(newNode, domNode);
+        } else if (isStringNewChild) {
+          if (typeof oldChild === 'string') {
+            if (oldChild !== newChild) {
+              domNode.textContent = newChild;
+            }
+          } else {
+            const textNode = document.createTextNode(newChild);
+            parent.replaceChild(textNode, domNode);
+          }
+        } else if (typeof newChild !== 'string' && typeof oldChild !== 'string') {
+          updateElement(domNode as HTMLElement, oldChild, newChild);
+        } else {
+          const elementNode = createElement(newChild as VNode);
+          parent.replaceChild(elementNode, domNode);
+        }
+      } else {
+        const newNode = isStringNewChild
+          ? document.createTextNode(newChild)
+          : createElement(newChild as VNode);
+
+        parent.appendChild(newNode);
       }
     }
   }
 
-  for (let i = oldNonKeyed.length - 1; i >= newNonKeyed.length; i--) {
-    const { index: oldIndex } = oldNonKeyed[i];
-
-    if (oldIndex < domChildren.length) {
-      parent.removeChild(domChildren[oldIndex]);
+  const currentDomChildren = Array.from(parent.childNodes);
+  if (currentDomChildren.length > newChildren.length) {
+    for (let i = currentDomChildren.length - 1; i >= newChildren.length; i--) {
+      parent.removeChild(currentDomChildren[i]);
     }
-  }
-
-  for (let i = minLength; i < newNonKeyed.length; i++) {
-    const { child: newChild } = newNonKeyed[i];
-
-    const newNode = typeof newChild === 'string'
-      ? document.createTextNode(newChild)
-      : createElement(newChild);
-
-    parent.appendChild(newNode);
   }
 }
 

@@ -87,8 +87,17 @@ const TodoList = component<TodoListModel, TodoListMsg>(
         return { ...model, todos: updatedTodos };
       }
       case 'DELETE_TODO': {
+        // Make sure we're creating a fresh array without the deleted todo
         const filteredTodos = model.todos.filter(todo => todo.id !== msg.id);
-        return { ...model, todos: filteredTodos };
+
+        // Log for debugging
+        console.log(`Deleting todo ${msg.id}. Old count: ${model.todos.length}, New count: ${filteredTodos.length}`);
+
+        // Return a completely new model to ensure the change is detected
+        return {
+          ...model,
+          todos: filteredTodos
+        };
       }
       default:
         return model;
