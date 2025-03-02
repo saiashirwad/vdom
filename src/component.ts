@@ -28,7 +28,7 @@ export type Component<TModel, TMsg extends { type: string }> = {
   render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => VNode;
 };
 
-export function createComponent<TModel, TMsg extends { type: string }>(
+export function component<TModel, TMsg extends { type: string }>(
   init: () => TModel,
   update: Pattern<TMsg, TModel, void | TModel | null>,
   view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode

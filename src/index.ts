@@ -1,4 +1,4 @@
-import { createComponent } from './component';
+import { component } from './component';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
 
@@ -11,7 +11,7 @@ type CounterMsg =
   | { type: 'DECREMENT' }
   | { type: 'SET'; value: number };
 
-const Counter = createComponent<CounterModel, CounterMsg>(
+const Counter = component<CounterModel, CounterMsg>(
   () => ({ count: 0 }),
   {
     INCREMENT: ({ state }) => {
@@ -47,7 +47,7 @@ type SettingsMsg =
   | { type: 'TOGGLE_DARK_MODE' }
   | { type: 'SET_FONT_SIZE'; size: number };
 
-const Settings = createComponent<SettingsModel, SettingsMsg>(
+const Settings = component<SettingsModel, SettingsMsg>(
   () => ({ darkMode: false, fontSize: 16 }),
   {
     TOGGLE_DARK_MODE: ({ state }) => {
@@ -98,7 +98,7 @@ type AppMsg =
   | { type: 'SETTINGS'; msg: SettingsMsg }
   | { type: 'RESET_COUNTER' };
 
-const App = createComponent<AppModel, AppMsg>(
+const App = component<AppModel, AppMsg>(
   () => ({
     counter: Counter.init(),
     settings: Settings.init(),
