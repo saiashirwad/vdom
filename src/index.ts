@@ -1,5 +1,5 @@
 import { createComponent } from './component';
-import { $ } from './elements';
+import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
 
 type CounterModel = {
@@ -24,14 +24,14 @@ const Counter = createComponent<CounterModel, CounterMsg>(
       state.count = value;
     }
   },
-  (model, dispatch) => $.div({ className: 'counter' }, [
-    $.h3({}, 'Counter'),
-    $.div({ className: 'controls' }, [
-      $.button({
+  (model, dispatch) => div({ className: 'counter' }, [
+    h3({}, 'Counter'),
+    div({ className: 'controls' }, [
+      button({
         onClick: () => dispatch({ type: 'DECREMENT' })
       }, '-'),
-      $.span({ className: 'value' }, String(model.count)),
-      $.button({
+      span({ className: 'value' }, String(model.count)),
+      button({
         onClick: () => dispatch({ type: 'INCREMENT' })
       }, '+')
     ])
@@ -57,30 +57,30 @@ const Settings = createComponent<SettingsModel, SettingsMsg>(
       state.fontSize = size;
     }
   },
-  (model, dispatch) => $.div({ className: 'settings' }, [
-    $.h3({}, 'Settings'),
-    $.div({ className: 'controls' }, [
-      $.label({}, [
-        $.input({
+  (model, dispatch) => div({ className: 'settings' }, [
+    h3({}, 'Settings'),
+    div({ className: 'controls' }, [
+      label({}, [
+        input({
           type: 'checkbox',
           checked: model.darkMode,
           onChange: () => dispatch({ type: 'TOGGLE_DARK_MODE' })
         }),
         ' Dark Mode'
       ]),
-      $.div({}, [
-        $.span({}, 'Font Size: '),
-        $.select({
+      div({}, [
+        span({}, 'Font Size: '),
+        select({
           value: String(model.fontSize),
           onChange: (e: Event) => {
             const size = Number((e.target as HTMLSelectElement).value);
             dispatch({ type: 'SET_FONT_SIZE', size });
           }
         }, [
-          $.option({ value: '12' }, '12px'),
-          $.option({ value: '14' }, '14px'),
-          $.option({ value: '16' }, '16px'),
-          $.option({ value: '18' }, '18px')
+          option({ value: '12' }, '12px'),
+          option({ value: '14' }, '14px'),
+          option({ value: '16' }, '16px'),
+          option({ value: '18' }, '18px')
         ])
       ])
     ])
@@ -127,20 +127,20 @@ const App = createComponent<AppModel, AppMsg>(
       padding: '20px'
     };
 
-    return $.div({ className: 'app' }, [
-      $.div({ style: containerStyle }, [
+    return div({ className: 'app' }, [
+      div({ style: containerStyle }, [
         Settings.view(model.settings, settingsDispatch),
-        $.div({ className: 'themed-container' }, [
+        div({ className: 'themed-container' }, [
           Counter.render({
             key: 'counter',
             model: model.counter,
             dispatch: counterDispatch
           }),
-          $.div({ className: 'reset-section' }, [
-            $.button({
+          div({ className: 'reset-section' }, [
+            button({
               onClick: () => dispatch({ type: 'RESET_COUNTER' })
             }, 'Reset Counter'),
-            $.p({}, `Counter has been reset ${model.resetCount} times`)
+            p({}, `Counter has been reset ${model.resetCount} times`)
           ])
         ])
       ])
