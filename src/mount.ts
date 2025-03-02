@@ -1,6 +1,5 @@
 import { type Component } from './component';
 import { createDOMElement, type VNode } from './vdom';
-import { createDispatch } from './dispatch';
 
 export interface MountOptions {
   rootId?: string;
@@ -20,7 +19,7 @@ export function mount<TModel, TMsg extends { type: string }>(
   }
 
   // Initial model
-  const model = component.init();
+  let model = component.init();
 
   // Function to dispatch messages
   const dispatch = createDispatch(model, render);
@@ -28,8 +27,8 @@ export function mount<TModel, TMsg extends { type: string }>(
   // Render function that updates the view
   function render() {
     // Clear the root element first
-    while (rootElement.firstChild) {
-      rootElement.removeChild(rootElement.firstChild);
+    while (rootElement!.firstChild) {
+      rootElement!.removeChild(rootElement!.firstChild);
     }
 
     // Call the component's view function with the model and dispatch
@@ -40,7 +39,7 @@ export function mount<TModel, TMsg extends { type: string }>(
 
     // Make sure domNode is actually a Node before appending
     if (domNode instanceof Node) {
-      rootElement.appendChild(domNode);
+      rootElement!.appendChild(domNode);
     } else {
       console.error('Failed to create DOM node:', vnode, domNode);
       throw new Error('createDOMElement did not return a valid DOM node');
@@ -48,7 +47,7 @@ export function mount<TModel, TMsg extends { type: string }>(
   }
 
   // Create a dispatch function that triggers model updates and rerenders
-  function createDispatch(model: TModel, render: () => void) {
+  function createDispatch(initialModel: TModel, render: () => void) {
     const dispatcher = {} as any;
 
     // For each message type in the component's update pattern
@@ -61,7 +60,8 @@ export function mount<TModel, TMsg extends { type: string }>(
 
         // If a new model is returned, use it
         if (updatedModel) {
-          Object.assign(model, updatedModel);
+          // Replace the model instead of using Object.assign
+          model = updatedModel;
         }
 
         // Rerender
