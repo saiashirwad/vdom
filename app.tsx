@@ -141,12 +141,3 @@ document.addEventListener('DOMContentLoaded', () => {
   mount(App, { rootId: 'app' });
 });
 
-const user = {
-  name: 'John',
-  age: 30,
-  email: 'john@example.com',
-  address: {
-    street: '123 Main St',
-    city: 'Anytown',
-  }
-}
