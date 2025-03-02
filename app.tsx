@@ -120,17 +120,15 @@ const App = component<AppModel, AppMsg>(
 
     return (
       <div>
+        <Settings model={model.settings} dispatch={settingsDispatch} />
+        <div className="themed-container">
+          <Counter model={model.counter} dispatch={counterDispatch} />
+        </div>
         <div>
-          <Settings model={model.settings} dispatch={settingsDispatch} />
-          <div className="themed-container">
-            <Counter model={model.counter} dispatch={counterDispatch} />
-          </div>
-          <div>
-            <button onClick={() => dispatch.resetCounter()}>
-              Reset Counter
-            </button>
-            <p>Counter has been reset {model.resetCount} times</p>
-          </div>
+          <button onClick={() => dispatch.resetCounter()}>
+            Reset Counter
+          </button>
+          <p>Counter has been reset {model.resetCount} times</p>
         </div>
       </div>
     );
