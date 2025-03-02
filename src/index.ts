@@ -126,15 +126,9 @@ const App = component<AppModel, AppMsg>(
     const counterDispatch = mapDispatch(dispatch.counter);
     const settingsDispatch = mapDispatch(dispatch.settings);
 
-    const containerStyle = {
-      backgroundColor: model.settings.darkMode ? '#333' : '#fff',
-      color: model.settings.darkMode ? '#fff' : '#333',
-      fontSize: `${model.settings.fontSize}px`,
-      padding: '20px'
-    };
 
     return div({ className: 'app' }, [
-      div({ style: containerStyle }, [
+      div([
         Settings.view(model.settings, settingsDispatch),
         div({ className: 'themed-container' }, [
           Counter.render({
