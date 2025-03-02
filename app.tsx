@@ -1,6 +1,6 @@
 import { component } from './src/component';
 import { mapDispatch } from './src/dispatch';
-import { button, div, h, h3, input, label, option, p, select, span } from './src/elements';
+import { h } from './src/elements';
 import { mount } from './src/mount';
 
 type CounterModel = {
