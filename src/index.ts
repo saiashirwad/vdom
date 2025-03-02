@@ -100,9 +100,9 @@ type AppModel = {
 };
 
 type AppMsg =
-  | { type: 'COUNTER'; msg: CounterMsg }
-  | { type: 'SETTINGS'; msg: SettingsMsg }
-  | { type: 'RESET_COUNTER' };
+  | { type: 'counter'; msg: CounterMsg }
+  | { type: 'settings'; msg: SettingsMsg }
+  | { type: 'resetCounter' };
 
 const App = component<AppModel, AppMsg>(
   () => ({
@@ -111,20 +111,20 @@ const App = component<AppModel, AppMsg>(
     resetCount: 0
   }),
   {
-    COUNTER: ({ msg: { msg }, state }) => {
+    counter: ({ msg: { msg }, state }) => {
       state.counter = Counter.updateState(msg, state.counter);
     },
-    SETTINGS: ({ msg: { msg }, state }) => {
+    settings: ({ msg: { msg }, state }) => {
       state.settings = Settings.updateState(msg, state.settings);
     },
-    RESET_COUNTER: ({ state }) => {
+    resetCounter: ({ state }) => {
       state.counter = Counter.init();
       state.resetCount += 1;
     }
   },
   (model, dispatch) => {
-    const counterDispatch = (msg: CounterMsg) => dispatch({ type: 'COUNTER', msg });
-    const settingsDispatch = (msg: SettingsMsg) => dispatch({ type: 'SETTINGS', msg });
+    const counterDispatch = (msg: CounterMsg) => dispatch.counter({ msg });
+    const settingsDispatch = (msg: SettingsMsg) => dispatch.settings({ msg });
 
     const enhancedCounterDispatch = createEnhancedDispatch<CounterMsg>(counterDispatch);
     const enhancedSettingsDispatch = createEnhancedDispatch<SettingsMsg>(settingsDispatch);
@@ -147,7 +147,7 @@ const App = component<AppModel, AppMsg>(
           }),
           div({ className: 'reset-section' }, [
             button({
-              onClick: () => dispatch.RESET_COUNTER()
+              onClick: () => dispatch.resetCounter()
             }, 'Reset Counter'),
             p({}, `Counter has been reset ${model.resetCount} times`)
           ])
