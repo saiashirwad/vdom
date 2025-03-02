@@ -1,49 +1,42 @@
 /**
- * Enhanced dispatch type that allows both function calls and property access
- * for message dispatching
+ * Property-based dispatch type that allows message dispatching via property access
  */
-export type EnhancedDispatch<TMsg extends { type: string }> = {
+export type PropertyDispatch<TMsg extends { type: string }> = {
   [K in TMsg['type']]: <T extends Extract<TMsg, { type: K }>>
     (params?: Omit<T, 'type'>) => void;
-} & ((msg: TMsg) => void);
+};
 
 /**
- * Creates an enhanced dispatch object that allows both traditional dispatch
- * and property-based dispatch:
+ * Creates a property-based dispatch object that allows dispatching messages via properties:
  * 
- * - Traditional: dispatch({ type: 'INCREMENT' })
- * - Enhanced: dispatch.INCREMENT()
+ * - dispatch.INCREMENT()
  * - With params: dispatch.SET({ value: 10 })
  */
-export function createEnhancedDispatch<TMsg extends { type: string }>(
+export function createDispatch<TMsg extends { type: string }>(
   dispatch: (msg: TMsg) => void
-): EnhancedDispatch<TMsg> {
-  return new Proxy(dispatch as any, {
-    get(target, prop) {
+): PropertyDispatch<TMsg> {
+  return new Proxy({} as any, {
+    get(_, prop) {
       if (typeof prop === 'string') {
         return (params = {}) => {
           const msg = { type: prop, ...params } as TMsg;
           return dispatch(msg);
         };
       }
-      return target[prop];
-    },
-    apply(target, _, args) {
-      return dispatch(args[0]);
+      return undefined;
     }
-  }) as EnhancedDispatch<TMsg>;
+  }) as PropertyDispatch<TMsg>;
 }
 
 /**
- * Maps dispatches from child components to parent components
+ * Creates a child component dispatch from a parent component dispatch property
  */
-export function mapDispatch(
-  parentDispatcher: any
-): any {
-  return createEnhancedDispatch((childMsg: any) => {
-    parentDispatcher({ msg: childMsg });
+export function createChildDispatch<TChildMsg extends { type: string }>(
+  parentDispatchFn: (msg: any) => void
+): PropertyDispatch<TChildMsg> {
+  return createDispatch((childMsg: TChildMsg) => {
+    parentDispatchFn({ msg: childMsg });
   });
 }
 
-// Export the old name for backward compatibility
-export const createNestedDispatch = mapDispatch; 
+

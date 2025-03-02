@@ -1,7 +1,7 @@
 import { component } from './component';
-import { mapDispatch } from './dispatch';
 import { button, div, h3, input, label, option, p, select, span } from './elements';
 import { mount } from './mount';
+import { createChildDispatch } from './dispatch';
 
 type CounterModel = {
   count: number;
@@ -119,9 +119,9 @@ const App = component<AppModel, AppMsg>(
     }
   },
   (model, dispatch) => {
-    const counterDispatch = mapDispatch(dispatch.counter);
-    const settingsDispatch = mapDispatch(dispatch.settings);
-
+    // Create properly typed child dispatchers
+    const settingsDispatch = createChildDispatch<SettingsMsg>(dispatch.settings);
+    const counterDispatch = createChildDispatch<CounterMsg>(dispatch.counter);
 
     return div({ className: 'app' }, [
       div([
