@@ -1,31 +1,45 @@
-import { h, createApp, type VNode, createElement, diff, applyDiff, match, type Pattern, produce, type Draft } from './vdom';
+import { produce } from 'immer';
+import { applyDiff, createElement, diff, h, type Draft, type VNode } from './vdom';
 
-// Component factory function with pattern matching support and immer integration
+type Pattern<TMsg extends { type: string }, TModel, TResult> = {
+  [K in TMsg['type']]: (params: {
+    msg: Extract<TMsg, { type: K }>,
+    state: Draft<TModel>  // Use Draft type for Immer support
+  }) => TResult;
+};
+
+function match<TMsg extends { type: string }, TModel, TResult>(
+  msg: TMsg,
+  patterns: Pattern<TMsg, TModel, TResult>,
+  state: TModel
+): TResult {
+  const handler = patterns[msg.type as keyof typeof patterns];
+  return handler({
+    msg: msg as Extract<TMsg, { type: typeof msg.type }>,
+    state: state as Draft<TModel>
+  });
+}
+
 function createComponent<TModel, TMsg extends { type: string }>(
-  name: string,
   init: () => TModel,
-  update: Pattern<TMsg, Draft<TModel>, void | null>,
+  update: Pattern<TMsg, TModel, void | TModel | null>,
   view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode
 ) {
   return {
-    name,
     init,
     update,
     view,
-    // Helper function to update state using pattern matching and immer
     updateState: (msg: TMsg, state: TModel): TModel => {
-      return produce(state, draft => {
-        return match(msg, update, draft);
+      return produce(state, (draft: Draft<TModel>) => {
+        match(msg, update, draft);
       });
     },
-    // Wrap the component for use in parent components
     render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
       return view(props.model ?? init(), props.dispatch ?? (() => { }));
     }
   };
 }
 
-// Counter Component
 type CounterModel = {
   count: number;
 };
@@ -36,17 +50,16 @@ type CounterMsg =
   | { type: 'SET'; value: number };
 
 const Counter = createComponent<CounterModel, CounterMsg>(
-  'Counter',
   () => ({ count: 0 }),
   {
-    INCREMENT: (_, draft) => {
-      draft.count += 1;
+    INCREMENT: ({ state }) => {
+      state.count += 1;
     },
-    DECREMENT: (_, draft) => {
-      draft.count -= 1;
+    DECREMENT: ({ state }) => {
+      state.count -= 1;
     },
-    SET: (msg, draft) => {
-      draft.count = msg.value;
+    SET: ({ msg: { value }, state }) => {
+      state.count = value;
     }
   },
   (model, dispatch) => h('div', { className: 'counter', key: 'counter-container' }, [
@@ -76,14 +89,15 @@ type SettingsMsg =
   | { type: 'SET_FONT_SIZE'; size: number };
 
 const Settings = createComponent<SettingsModel, SettingsMsg>(
-  'Settings',
   () => ({ darkMode: false, fontSize: 16 }),
   {
-    TOGGLE_DARK_MODE: (_, draft) => {
-      draft.darkMode = !draft.darkMode;
+    TOGGLE_DARK_MODE: ({ state }) => {
+      // Mutative approach with Immer
+      state.darkMode = !state.darkMode;
     },
-    SET_FONT_SIZE: (msg, draft) => {
-      draft.fontSize = msg.size;
+    SET_FONT_SIZE: ({ msg: { size }, state }) => {
+      // Mutative approach with Immer
+      state.fontSize = size;
     }
   },
   (model, dispatch) => h('div', { className: 'settings', key: 'settings-container' }, [
@@ -131,23 +145,24 @@ type AppMsg =
   | { type: 'RESET_COUNTER' };
 
 const App = createComponent<AppModel, AppMsg>(
-  'App',
   () => ({
     counter: Counter.init(),
     settings: Settings.init(),
     resetCount: 0
   }),
   {
-    COUNTER: (msg, draft) => {
-      // Use the match + produce pattern inside a draft
-      draft.counter = Counter.updateState(msg.msg, draft.counter);
+    COUNTER: ({ msg: { msg }, state }) => {
+      // Mutative update with sub-component
+      state.counter = Counter.updateState(msg, state.counter);
     },
-    SETTINGS: (msg, draft) => {
-      draft.settings = Settings.updateState(msg.msg, draft.settings);
+    SETTINGS: ({ msg: { msg }, state }) => {
+      // Mutative update with sub-component
+      state.settings = Settings.updateState(msg, state.settings);
     },
-    RESET_COUNTER: (_, draft) => {
-      draft.counter = Counter.init();
-      draft.resetCount += 1;
+    RESET_COUNTER: ({ state }) => {
+      // Mutative update with counter reset
+      state.counter = Counter.init();
+      state.resetCount += 1;
     }
   },
   (model, dispatch) => {
@@ -196,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let appState = App.init();
 
-  // Create a dispatch function that uses Immer for updates
+  // Create a dispatch function that uses the updateState helper
   const dispatch = (msg: AppMsg) => {
     appState = App.updateState(msg, appState);
     render(); // Call render after state update
