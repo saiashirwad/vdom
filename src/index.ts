@@ -1,10 +1,10 @@
-import { h, createApp, type VNode, createElement, diff, applyDiff } from './vdom';
+import { h, createApp, type VNode, createElement, diff, applyDiff, match, type Pattern } from './vdom';
 
-// Component factory function
+// Component factory function with pattern matching support
 function createComponent<TModel, TMsg extends { type: string }>(
   name: string,
   init: () => TModel,
-  update: (msg: TMsg, model: TModel) => TModel,
+  update: Pattern<TMsg, TModel, TModel>,
   view: (model: TModel, dispatch: (msg: TMsg) => void) => VNode
 ) {
   return {
@@ -14,13 +14,12 @@ function createComponent<TModel, TMsg extends { type: string }>(
     view,
     // Wrap the component for use in parent components
     render: (props: { key: string, dispatch?: (msg: TMsg) => void, model?: TModel }) => {
-      // This is a placeholder that would be replaced by proper logic in a real implementation
-      // It allows rendering a component with an externally managed model and dispatch
       return view(props.model ?? init(), props.dispatch ?? (() => { }));
     }
   };
 }
 
+// Counter Component
 type CounterModel = {
   count: number;
 };
@@ -33,17 +32,10 @@ type CounterMsg =
 const Counter = createComponent<CounterModel, CounterMsg>(
   'Counter',
   () => ({ count: 0 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'INCREMENT':
-        return { ...model, count: model.count + 1 };
-      case 'DECREMENT':
-        return { ...model, count: model.count - 1 };
-      case 'SET':
-        return { ...model, count: msg.value };
-      default:
-        return model;
-    }
+  {
+    INCREMENT: (_, model) => ({ ...model, count: model.count + 1 }),
+    DECREMENT: (_, model) => ({ ...model, count: model.count - 1 }),
+    SET: (msg, model) => ({ ...model, count: msg.value })
   },
   (model, dispatch) => h('div', { className: 'counter', key: 'counter-container' }, [
     h('h3', { key: 'counter-heading' }, 'Counter'),
@@ -74,15 +66,9 @@ type SettingsMsg =
 const Settings = createComponent<SettingsModel, SettingsMsg>(
   'Settings',
   () => ({ darkMode: false, fontSize: 16 }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'TOGGLE_DARK_MODE':
-        return { ...model, darkMode: !model.darkMode };
-      case 'SET_FONT_SIZE':
-        return { ...model, fontSize: msg.size };
-      default:
-        return model;
-    }
+  {
+    TOGGLE_DARK_MODE: (_, model) => ({ ...model, darkMode: !model.darkMode }),
+    SET_FONT_SIZE: (msg, model) => ({ ...model, fontSize: msg.size })
   },
   (model, dispatch) => h('div', { className: 'settings', key: 'settings-container' }, [
     h('h3', { key: 'settings-heading' }, 'Settings'),
@@ -116,6 +102,7 @@ const Settings = createComponent<SettingsModel, SettingsMsg>(
   ])
 );
 
+// Main App Component
 type AppModel = {
   counter: CounterModel;
   settings: SettingsModel;
@@ -134,27 +121,20 @@ const App = createComponent<AppModel, AppMsg>(
     settings: Settings.init(),
     resetCount: 0
   }),
-  (msg, model) => {
-    switch (msg.type) {
-      case 'COUNTER':
-        return {
-          ...model,
-          counter: Counter.update(msg.msg, model.counter)
-        };
-      case 'SETTINGS':
-        return {
-          ...model,
-          settings: Settings.update(msg.msg, model.settings)
-        };
-      case 'RESET_COUNTER':
-        return {
-          ...model,
-          counter: Counter.init(),
-          resetCount: model.resetCount + 1
-        };
-      default:
-        return model;
-    }
+  {
+    COUNTER: (msg, model) => ({
+      ...model,
+      counter: match(msg.msg, Counter.update, model.counter)
+    }),
+    SETTINGS: (msg, model) => ({
+      ...model,
+      settings: match(msg.msg, Settings.update, model.settings)
+    }),
+    RESET_COUNTER: (_, model) => ({
+      ...model,
+      counter: Counter.init(),
+      resetCount: model.resetCount + 1
+    })
   },
   (model, dispatch) => {
     // Create wrapped dispatchers for child components
@@ -171,13 +151,11 @@ const App = createComponent<AppModel, AppMsg>(
 
     return h('div', { key: 'app-container', className: 'app' }, [
       h('div', { key: 'app-content', style: containerStyle }, [
-        // Using both styles to show the options:
-
-        // Option 1: Directly use the component's view function
+        // Directly use the component's view function
         Settings.view(model.settings, settingsDispatch),
 
         h('div', { key: 'content-container', className: 'themed-container' }, [
-          // Option 2: Use the render helper method
+          // Use the render helper method
           Counter.render({
             key: 'counter',
             model: model.counter,
@@ -206,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Create a dispatch function that causes re-renders
   const dispatch = (msg: AppMsg) => {
-    appState = App.update(msg, appState);
+    appState = match(msg, App.update, appState);
     render(); // Call render after state update
   };
 
