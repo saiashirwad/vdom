@@ -1,6 +1,5 @@
 import { createComponent } from './component';
 import { $ } from './elements';
-import { applyDiff, createElement, diff, type VNode } from './vdom';
 import { mount } from './mount';
 
 type CounterModel = {
