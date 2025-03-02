@@ -1,6 +1,31 @@
 import { produce } from 'immer';
 import { applyDiff, createElement, diff, h, type Draft, type VNode } from './vdom';
 
+// Add the $ helper object with methods for all HTML elements
+const $ = {} as Record<string, (...args: any[]) => VNode>;
+
+// List of common HTML elements
+const elements = [
+  'a', 'abbr', 'article', 'aside', 'audio', 'b', 'blockquote', 'body', 'br', 'button',
+  'canvas', 'caption', 'code', 'col', 'colgroup', 'data', 'datalist', 'dd', 'del', 'details',
+  'dfn', 'dialog', 'div', 'dl', 'dt', 'em', 'fieldset', 'figcaption', 'figure', 'footer',
+  'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'i', 'iframe', 'img', 'input',
+  'label', 'legend', 'li', 'main', 'map', 'mark', 'menu', 'meter', 'nav', 'ol', 'optgroup',
+  'option', 'output', 'p', 'pre', 'progress', 'section', 'select', 'small', 'span', 'strong',
+  'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'textarea', 'tfoot', 'th', 'thead', 'time',
+  'tr', 'track', 'ul', 'video'
+];
+
+// Create methods for each element
+elements.forEach(element => {
+  $[element] = (props?: { [key: string]: any }, children?: VNode | string | (VNode | string)[]) => {
+    return h(element, props, children);
+  };
+});
+
+// Also expose h directly on $ for custom elements
+$.h = h;
+
 type Pattern<TMsg extends { type: string }, TModel, TResult> = {
   [K in TMsg['type']]: (params: {
     msg: Extract<TMsg, { type: K }>,
@@ -72,14 +97,14 @@ const Counter = createComponent<CounterModel, CounterMsg>(
       state.count = value;
     }
   },
-  (model, dispatch) => h('div', { className: 'counter' }, [
-    h('h3', {}, 'Counter'),
-    h('div', { className: 'controls' }, [
-      h('button', {
+  (model, dispatch) => $.div({ className: 'counter' }, [
+    $.h3({}, 'Counter'),
+    $.div({ className: 'controls' }, [
+      $.button({
         onClick: () => dispatch({ type: 'DECREMENT' })
       }, '-'),
-      h('span', { className: 'value' }, String(model.count)),
-      h('button', {
+      $.span({ className: 'value' }, String(model.count)),
+      $.button({
         onClick: () => dispatch({ type: 'INCREMENT' })
       }, '+')
     ])
@@ -107,30 +132,30 @@ const Settings = createComponent<SettingsModel, SettingsMsg>(
       state.fontSize = size;
     }
   },
-  (model, dispatch) => h('div', { className: 'settings' }, [
-    h('h3', {}, 'Settings'),
-    h('div', { className: 'controls' }, [
-      h('label', {}, [
-        h('input', {
+  (model, dispatch) => $.div({ className: 'settings' }, [
+    $.h3({}, 'Settings'),
+    $.div({ className: 'controls' }, [
+      $.label({}, [
+        $.input({
           type: 'checkbox',
           checked: model.darkMode,
           onChange: () => dispatch({ type: 'TOGGLE_DARK_MODE' })
         }),
         ' Dark Mode'
       ]),
-      h('div', {}, [
-        h('span', {}, 'Font Size: '),
-        h('select', {
+      $.div({}, [
+        $.span({}, 'Font Size: '),
+        $.select({
           value: String(model.fontSize),
           onChange: (e: Event) => {
             const size = Number((e.target as HTMLSelectElement).value);
             dispatch({ type: 'SET_FONT_SIZE', size });
           }
         }, [
-          h('option', { value: '12' }, '12px'),
-          h('option', { value: '14' }, '14px'),
-          h('option', { value: '16' }, '16px'),
-          h('option', { value: '18' }, '18px')
+          $.option({ value: '12' }, '12px'),
+          $.option({ value: '14' }, '14px'),
+          $.option({ value: '16' }, '16px'),
+          $.option({ value: '18' }, '18px')
         ])
       ])
     ])
@@ -183,12 +208,12 @@ const App = createComponent<AppModel, AppMsg>(
       padding: '20px'
     };
 
-    return h('div', { className: 'app' }, [
-      h('div', { style: containerStyle }, [
+    return $.div({ className: 'app' }, [
+      $.div({ style: containerStyle }, [
         // Directly use the component's view function
         Settings.view(model.settings, settingsDispatch),
 
-        h('div', { className: 'themed-container' }, [
+        $.div({ className: 'themed-container' }, [
           // Use the render helper method
           Counter.render({
             key: 'counter',
@@ -196,11 +221,11 @@ const App = createComponent<AppModel, AppMsg>(
             dispatch: counterDispatch
           }),
 
-          h('div', { className: 'reset-section' }, [
-            h('button', {
+          $.div({ className: 'reset-section' }, [
+            $.button({
               onClick: () => dispatch({ type: 'RESET_COUNTER' })
             }, 'Reset Counter'),
-            h('p', {}, `Counter has been reset ${model.resetCount} times`)
+            $.p({}, `Counter has been reset ${model.resetCount} times`)
           ])
         ])
       ])
