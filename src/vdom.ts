@@ -440,13 +440,50 @@ function createDispatcher<Model, Msg>(
   };
 }
 
-export function component<Model, Msg>(
-  componentType: string,
-  init: () => [Model, Cmd<Msg>],
-  update: (msg: Msg, draft: Draft<Model>) => void | Model | [Model, Cmd<Msg>] | null,
-  view: (model: Model, dispatch: (msg: Msg) => void) => VNode
+/**
+ * Type-safe pattern matching for message handling
+ */
+export type Pattern<TMsg extends { type: string }, TModel, TResult> = {
+  [K in TMsg['type']]: (
+    // Extract the specific message type based on the 'type' property
+    msg: Extract<TMsg, { type: K }>,
+    state: TModel
+  ) => TResult;
+};
+
+/**
+ * Pattern matching function for handling messages in a type-safe way
+ */
+export function match<TMsg extends { type: string }, TModel, TResult>(
+  msg: TMsg,
+  patterns: Pattern<TMsg, TModel, TResult>,
+  state: TModel
+): TResult {
+  if (!(msg.type in patterns)) {
+    throw new Error(`No pattern matching handler for message type: ${msg.type}`);
+  }
+  const handler = patterns[msg.type as keyof typeof patterns] as (msg: TMsg, state: TModel) => TResult;
+  return handler(msg, state);
+}
+
+export type Command<TMsg> = Cmd<TMsg>;
+export type Dispatch<TMsg> = (msg: TMsg) => void;
+export type Component<TProps> = (props: Omit<TProps, 'key'> & { key: string }) => VNode;
+
+export function component<TModel, TMsg extends { type: string }>(
+  name: string,
+  init: () => [TModel, Command<TMsg> | null],
+  update:
+    | ((msg: TMsg, state: Draft<TModel>) => void | null | [TModel, Command<TMsg>])
+    | Pattern<TMsg, Draft<TModel>, void | null | [TModel, Command<TMsg>]>,
+  view: (model: TModel, dispatch: Dispatch<TMsg>) => VNode
 ): (props: { key: string }) => VNode {
-  componentUpdates.set(componentType, update as any);
+  // Create the update function that handles both pattern matching and traditional approach
+  const updateFn = typeof update === 'function'
+    ? update
+    : (msg: TMsg, state: Draft<TModel>) => match(msg, update as Pattern<TMsg, Draft<TModel>, void | null | [TModel, Command<TMsg>]>, state);
+
+  componentUpdates.set(name, updateFn as any);
 
   return function Component(props: { key: string }): VNode {
     const componentKey = props.key;
@@ -456,13 +493,13 @@ export function component<Model, Msg>(
       componentStates.set(componentKey, initialModel);
 
       if (initialCmd) {
-        const dispatch = createDispatcher(componentType, componentKey);
+        const dispatch = createDispatcher(name, componentKey);
         initialCmd(dispatch);
       }
     }
 
     const model = componentStates.get(componentKey)!;
-    const dispatch = createDispatcher(componentType, componentKey);
+    const dispatch = createDispatcher(name, componentKey);
 
     return view(model, dispatch);
   };

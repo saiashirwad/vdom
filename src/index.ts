@@ -1,4 +1,4 @@
-import { component, h, createApp, type VNode } from './vdom';
+import { component, h, createApp, match, type VNode } from './vdom';
 
 
 type Todo = {
@@ -22,43 +22,38 @@ type TodoListMsg =
 const TodoList = component<TodoListModel, TodoListMsg>(
   'TODO_LIST',
   () => [{ todos: [], newTodoText: '', nextId: 1 }, null],
-  (msg, state) => {
-    switch (msg.type) {
-      case 'UPDATE_NEW_TODO': {
-        state.newTodoText = msg.text;
-        return;
+  {
+    UPDATE_NEW_TODO: ({ text }, state) => {
+      state.newTodoText = text;
+    },
+    ADD_TODO: (_, state) => {
+      if (!state.newTodoText.trim()) return null;
+      state.todos.push({
+        id: state.nextId,
+        text: state.newTodoText,
+        completed: false
+      });
+      state.newTodoText = '';
+      state.nextId++;
+    },
+    TOGGLE_TODO: ({ id }, state) => {
+      const todo = state.todos.find(t => t.id === id);
+      if (todo) {
+        todo.completed = !todo.completed;
       }
-      case 'ADD_TODO': {
-        if (!state.newTodoText.trim()) return null;
-        state.todos.push({
-          id: state.nextId,
-          text: state.newTodoText,
-          completed: false
-        });
-        state.newTodoText = '';
-        state.nextId++;
-        return;
-      }
-      case 'TOGGLE_TODO': {
-        const todo = state.todos.find(t => t.id === msg.id);
-        if (todo) {
-          todo.completed = !todo.completed;
-        }
-        return;
-      }
-      case 'DELETE_TODO': {
-        const index = state.todos.findIndex(t => t.id === msg.id);
-        if (index !== -1) {
-          state.todos.splice(index, 1);
+    },
+    DELETE_TODO: ({ id }, state) => {
+      const index = state.todos.findIndex(t => t.id === id);
+      if (index !== -1) {
+        state.todos.splice(index, 1);
 
-          // Example of returning a command with the modified draft
-          const logCmd = (dispatch: (msg: TodoListMsg) => void) => {
-            console.log(`Deleted todo ${msg.id}`);
-          };
-          return [state, logCmd];
-        }
-        return null;
+        // Example of returning a command with the modified draft
+        const logCmd = (dispatch: (msg: TodoListMsg) => void) => {
+          console.log(`Deleted todo ${id}`);
+        };
+        return [state, logCmd];
       }
+      return null;
     }
   },
   (model, dispatch) => h('div', { className: 'todo-list', key: 'todo-list-container' }, [
