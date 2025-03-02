@@ -1,6 +1,6 @@
-import { applyDiff, createElement, diff, type VNode } from './vdom';
+import { createComponent } from './component';
 import { $ } from './elements';
-import { createComponent, type Component } from './component';
+import { applyDiff, createElement, diff, type VNode } from './vdom';
 
 type CounterModel = {
   count: number;
