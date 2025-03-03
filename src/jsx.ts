@@ -19,10 +19,75 @@ export function h(
   return createElement(tag, props || {}, children.flat());
 }
 
+// Define the ChildrenType to use in our JSX declarations
+type ChildrenType = VNode | string | number | boolean | null | undefined | ChildrenType[];
+
 // Declare JSX namespace for TypeScript
 declare global {
   namespace JSX {
     interface Element extends VNode { }
+
+    // Add more specific props with better typing later:
+    interface HTMLAttributes {
+      children?: ChildrenType;
+      // Common attributes
+      className?: string;
+      id?: string;
+      style?: string | object;
+      key?: string;
+      title?: string;
+      tabIndex?: number;
+      role?: string;
+      ariaLabel?: string;
+      ariaDescribedBy?: string;
+      ariaHidden?: boolean | 'true' | 'false';
+
+      // Event handlers
+      onClick?: (event: MouseEvent) => void;
+      onChange?: (event: Event) => void;
+      onInput?: (event: InputEvent) => void;
+      onKeyDown?: (event: KeyboardEvent) => void;
+      onKeyUp?: (event: KeyboardEvent) => void;
+      onFocus?: (event: FocusEvent) => void;
+      onBlur?: (event: FocusEvent) => void;
+      onSubmit?: (event: Event) => void;
+      onMouseOver?: (event: MouseEvent) => void;
+      onMouseOut?: (event: MouseEvent) => void;
+    }
+
+    // Input element attributes
+    interface InputHTMLAttributes extends HTMLAttributes {
+      type?: 'text' | 'password' | 'checkbox' | 'radio' | 'number' | 'email' | 'tel' | 'url' | 'date' | 'time' | 'file';
+      value?: string | number | readonly string[];
+      checked?: boolean;
+      placeholder?: string;
+      disabled?: boolean;
+      required?: boolean;
+      name?: string;
+      autoComplete?: string;
+      min?: number | string;
+      max?: number | string;
+      pattern?: string;
+      onChange?: (event: Event) => void;
+    }
+
+    // Button element attributes
+    interface ButtonHTMLAttributes extends HTMLAttributes {
+      type?: 'button' | 'submit' | 'reset';
+      disabled?: boolean;
+      name?: string;
+      value?: string | number | readonly string[];
+    }
+
+    // Select element attributes
+    interface SelectHTMLAttributes extends HTMLAttributes {
+      value?: string | number | readonly string[];
+      multiple?: boolean;
+      disabled?: boolean;
+      name?: string;
+      required?: boolean;
+      size?: number;
+    }
 
     interface IntrinsicElements {
       // HTML elements with specific types
@@ -38,7 +103,6 @@ declare global {
       button: ButtonHTMLAttributes;
       input: InputHTMLAttributes;
       select: SelectHTMLAttributes;
-      // Keep going for other elements you commonly use
 
       // For elements you use less often, you can keep using any
       abbr: any;
@@ -135,74 +199,5 @@ declare global {
       video: any;
       wbr: any;
     }
-
-    // Add more specific props with better typing later:
-    interface HTMLAttributes {
-      children?: ChildrenType;
-      // Common attributes
-      className?: string;
-      id?: string;
-      style?: string | object;
-      key?: string;
-      title?: string;
-      tabIndex?: number;
-      role?: string;
-      ariaLabel?: string;
-      ariaDescribedBy?: string;
-      ariaHidden?: boolean | 'true' | 'false';
-
-      // Event handlers
-      onClick?: (event: MouseEvent) => void;
-      onChange?: (event: Event) => void;
-      onInput?: (event: InputEvent) => void;
-      onKeyDown?: (event: KeyboardEvent) => void;
-      onKeyUp?: (event: KeyboardEvent) => void;
-      onFocus?: (event: FocusEvent) => void;
-      onBlur?: (event: FocusEvent) => void;
-      onSubmit?: (event: Event) => void;
-      onMouseOver?: (event: MouseEvent) => void;
-      onMouseOut?: (event: MouseEvent) => void;
-    }
-
-    // Input element attributes
-    interface InputHTMLAttributes extends HTMLAttributes {
-      type?: 'text' | 'password' | 'checkbox' | 'radio' | 'number' | 'email' | 'tel' | 'url' | 'date' | 'time' | 'file';
-      value?: string | number | readonly string[];
-      checked?: boolean;
-      placeholder?: string;
-      disabled?: boolean;
-      required?: boolean;
-      name?: string;
-      autoComplete?: string;
-      min?: number | string;
-      max?: number | string;
-      pattern?: string;
-    }
-
-    // Button element attributes
-    interface ButtonHTMLAttributes extends HTMLAttributes {
-      type?: 'button' | 'submit' | 'reset';
-      disabled?: boolean;
-      name?: string;
-      value?: string | number | readonly string[];
-    }
-
-    // Select element attributes
-    interface SelectHTMLAttributes extends HTMLAttributes {
-      value?: string | number | readonly string[];
-      multiple?: boolean;
-      disabled?: boolean;
-      name?: string;
-      required?: boolean;
-      size?: number;
-    }
   }
-}
-
-type ChildrenType = VNode | string | number | boolean | null | undefined | ChildrenType[];
-
-// And update the HTMLAttributes interface to include children
-interface HTMLAttributes {
-  children?: ChildrenType;
-  // ... other attributes
 } 

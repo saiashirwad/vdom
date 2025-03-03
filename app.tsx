@@ -59,7 +59,7 @@ const TodoList = component<TodoModel, TodoMsg>(
         <input
           type="text"
           value={model.newTodoText}
-          onChange={(e: Event) => {
+          onChange={(e) => {
             const text = (e.target as HTMLInputElement).value;
             console.log({text})
             dispatch.updateNewTodo({ text });
