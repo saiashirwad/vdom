@@ -27,9 +27,7 @@ export function mount<TModel, TMsg extends { type: string }>(
   // Render function that updates the view
   function render() {
     // Clear the root element first
-    while (rootElement!.firstChild) {
-      rootElement!.removeChild(rootElement!.firstChild);
-    }
+    rootElement.innerHTML = '';
 
     // Call the component's view function with the model and dispatch
     const vnode = component.view(model, dispatch);
@@ -39,7 +37,7 @@ export function mount<TModel, TMsg extends { type: string }>(
 
     // Make sure domNode is actually a Node before appending
     if (domNode instanceof Node) {
-      rootElement!.appendChild(domNode);
+      rootElement.appendChild(domNode);
     } else {
       console.error('Failed to create DOM node:', vnode, domNode);
       throw new Error('createDOMElement did not return a valid DOM node');
